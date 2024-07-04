@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Followed Artists</title>
+    <style>
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+        }
+        .progress-bar-inner {
+            height: 20px;
+            border-radius: 5px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Followed Artists</h1>
+    <ul>
+        {% for artist in artists %}
+            <li>
+                <strong>{{ artist.name }}</strong><br>
+                <em>Genres:</em> {{ artist.genres|join(', ') }}<br>
+                <em>Popularity:</em>
+                <div class="progress-bar">
+                    <div class="progress-bar-inner" style="width: {{ artist.popularity }}%;">
+                        {{ artist.popularity }}
+                    </div>
+                </div>
+                <img src="{{ artist.images[0].url }}" alt="{{ artist.name }}'s image" style="height: 100px;">
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

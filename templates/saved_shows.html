@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>User's Saved Shows</title>
+</head>
+<body>
+    <h1>User's Saved Shows</h1>
+    <ul>
+        {% for show in shows %}
+            <li>
+                <strong>{{ show.show.name }}</strong><br>
+                <em>Description:</em> {{ show.show.description }}
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

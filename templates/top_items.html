@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Top Artists, Tracks, and Genres</title>
+</head>
+<body>
+    {% for time_range, data in top_artists_data.items() %}
+        <h1>Top Artists ({{ time_range.replace('_', ' ').capitalize() }})</h1>
+        <ul>
+            {% for artist in data.artists %}
+                <li>{{ artist.name }}</li>
+            {% endfor %}
+        </ul>
+        <h1>Top Genres ({{ time_range.replace('_', ' ').capitalize() }})</h1>
+        <ul>
+            {% for genre in data.genres %}
+                <li>{{ genre }}</li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+
+    {% for time_range, tracks in top_tracks_data.items() %}
+        <h1>Top Tracks ({{ time_range.replace('_', ' ').capitalize() }})</h1>
+        <ul>
+            {% for track in tracks %}
+                <li>{{ track.name }} by {{ track.artists[0].name }}</li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</body>
+</html>
