@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySpotiPal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #ffffff; /* Background color is white */
+            color: #191414; /* Text color is dark */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            padding: 100px;
+            background-color: #d1e8d3; /* Pastel green background */
+            border-radius: 10px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+            font-weight: 700;
+        }
+        p {
+            font-size: 1.2em;
+            margin-bottom: 1.5em;
+            font-weight: 300;
+        }
+        .login-button {
+            background-color: #191414; /* Spotify dark background */
+            color: #1db954; /* Spotify green */
+            border: 2px solid #1db954;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            margin-top: 30px; /* Margin to move the button down */
+        }
+        .login-button:hover {
+            background-color: #1db954;
+            color: #191414;
+        }
+        .chatbot-image {
+            width: 200px;
+            height: auto;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+        }
+        .spotify-logo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('static', filename='images/spotify_logo.svg') }}" alt="Spotify Logo" class="spotify-logo">
+        <h1>Welcome to MySpotiPal</h1>
+        <p>Your personal Spotify assistant that knows your music taste inside out. Ready to create personalized playlists, answer your music-related queries, and much more!</p>
+        <a href="{{ url_for('login') }}" class="login-button">Log in with Spotify</a>
+        <img src="{{ url_for('static', filename='images/chatbot.png') }}" alt="Chatbot Image" class="chatbot-image">
+    </div>
+</body>
+</html>
