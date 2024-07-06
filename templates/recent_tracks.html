@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recently Played Tracks</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Recently Played Tracks</h1>
+    <ul>
+        {% for track in recent_tracks %}
+        <li>
+            <strong>{{ track['track']['name'] }}</strong><br>
+            <em>Artist:</em> {{ track['track']['artists'][0]['name'] }}<br>
+            <em>Played at:</em> {{ track['played_at'] }}<br>
+            <img src="{{ track['track']['album']['images'][0]['url'] }}" alt="{{ track['track']['name'] }}'s image" style="height: 100px;">
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
