@@ -106,3 +106,30 @@ def get_saved_shows(access_token):
 
     return shows
 
+def get_recently_played_tracks(access_token):
+    url = 'https://api.spotify.com/v1/me/player/recently-played?limit=50'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    recent_tracks = []
+    while url:
+        print(f"Making request to URL: {url}")
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            print("Error fetching recent tracks:")
+            print("Request URL:", url)
+            print("Status Code:", response.status_code)
+            print("Response Text:", response.text)
+            return None
+
+        data = response.json()
+        print("Received data:", data)
+        
+        recent_tracks.extend(data['items'])
+        
+        url = data.get('next')
+
+    return recent_tracks
+

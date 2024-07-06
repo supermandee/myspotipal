@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 import os
 import base64
 from dotenv import load_dotenv
-from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows  # Import helper functions
+from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks  # Import helper functions
 
 
 # Load environment variables from .env file
@@ -24,7 +24,7 @@ def index():
 
 @app.route('/login')
 def login():
-    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative'
+    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played'
     params = {
         'response_type': 'code',
         'redirect_uri': REDIRECT_URI,
@@ -151,5 +151,18 @@ def saved_shows():
 
     return render_template('saved_shows.html', shows=shows)
 
+@app.route('/recent-tracks')
+def recent_tracks():
+    access_token = session.get('access_token')
+    if not access_token:
+        return redirect(url_for('login'))
+
+    print("Access Token:", access_token)
+    recent_tracks_data = get_recently_played_tracks(access_token)
+    if recent_tracks_data is None:
+        return "Error fetching recently played tracks", 500
+
+    return render_template('recent_tracks.html', recent_tracks=recent_tracks_data)
+  
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5001)
