@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySpotiPal Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #ffffff;
+            color: #191414;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: #d1e8d3;
+            border-radius: 10px;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .chat-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-bubble {
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: #f1f0f0;
+            align-self: flex-start;
+        }
+        .input-box {
+            display: flex;
+            width: 100%;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 5px 0 0 5px;
+        }
+        .input-box button {
+            padding: 10px 20px;
+            background-color: #1db954;
+            color: #fff;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .input-box button:hover {
+            background-color: #191414;
+        }
+        .examples {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .examples p {
+            margin: 5px 0;
+            cursor: pointer;
+            color: #1db954;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MySpotiPal Chat</h1>
+        <div class="chat-box" id="chat-box">
+            <!-- Chat messages will appear here -->
+        </div>
+        <div class="examples">
+            <p onclick="setExample('What are my top artists?')">What are my top artists?</p>
+            <p onclick="setExample('What\'s my most played track recently?')">What's my most played track recently?</p>
+        </div>
+        <div class="input-box">
+            <input type="text" id="user-input" placeholder="Ask me something..." onkeypress="checkEnter(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <script>
+        function setExample(example) {
+            document.getElementById('user-input').value = example;
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            const chatBox = document.getElementById('chat-box');
+
+            if (userInput.trim() === '') return;
+
+            // Display the user's message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chat-bubble user-message';
+            userMessage.textContent = 'You: ' + userInput;
+            chatBox.appendChild(userMessage);
+
+            // Clear the input box
+            document.getElementById('user-input').value = '';
+
+            // Send the user's message to the server
+            fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'query=' + encodeURIComponent(userInput)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const botMessage = document.createElement('div');
+                botMessage.className = 'chat-bubble bot-message';
+                botMessage.textContent = 'Chatbot: ' + data.answer;
+                chatBox.appendChild(botMessage);
+
+                // Scroll to the bottom of the chat box
+                chatBox.scrollTop = chatBox.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function checkEnter(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -25,7 +25,6 @@
             <strong>{{ track['track']['name'] }}</strong><br>
             <em>Artist:</em> {{ track['track']['artists'][0]['name'] }}<br>
             <em>Played at:</em> {{ track['played_at'] }}<br>
-            <img src="{{ track['track']['album']['images'][0]['url'] }}" alt="{{ track['track']['name'] }}'s image" style="height: 100px;">
         </li>
         {% endfor %}
     </ul>

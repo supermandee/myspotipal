@@ -1,19 +1,43 @@
 import requests
 
-def get_top_items(access_token, time_range, item_type):
+def get_top_items(access_token, time_range, item_type, limit=10):
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
-    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?limit=50&time_range={time_range}', headers=headers)
+    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?limit={limit}&time_range={time_range}', headers=headers)
     
     if response.status_code != 200:
-        # Enhanced error logging
         print(f"Error fetching top {item_type} for {time_range}:")
         print("Error code:", response.status_code)
         print("Error response:", response.text)
         return None
 
-    return response.json()['items']
+    items = response.json()['items']
+    # Keep only necessary fields
+    simplified_items = []
+    for item in items:
+        simplified_item = {
+            'name': item['name'],
+            'popularity': item.get('popularity'),
+        }
+        if item_type == 'artists':
+            simplified_item['genres'] = item['genres']
+        elif item_type == 'tracks':
+            simplified_item['artists'] = [artist['name'] for artist in item['artists']]
+            simplified_item['album'] = item['album']['name']
+        simplified_items.append(simplified_item)
+    return simplified_items
+
+def summarize_data(data, item_type):
+    summary = {}
+    if item_type == 'artists':
+        genres = [genre for item in data for genre in item.get('genres', [])]
+        summary['top_genres'] = list(set(genres))
+    elif item_type == 'tracks':
+        summary['top_artists'] = list(set(artist for item in data for artist in item.get('artists', [])))
+    
+    summary['average_popularity'] = sum(item.get('popularity', 0) for item in data) / len(data)
+    return summary
 
 def get_followed_artists(access_token):
     url = 'https://api.spotify.com/v1/me/following?type=artist&limit=50'
@@ -23,7 +47,6 @@ def get_followed_artists(access_token):
 
     artists = []
     while url and len(artists) < 100:
-        print(f"Making request to URL: {url}")
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -34,9 +57,15 @@ def get_followed_artists(access_token):
             return None
 
         data = response.json()
-        print("Received data:", data)  # Debugging line
-        
-        artists.extend(data['artists']['items'])
+        for artist in data['artists']['items']:
+            simplified_artist = {
+                'id': artist['id'],
+                'name': artist['name'],
+                'genres': artist['genres'],
+                'popularity': artist.get('popularity'),
+                'uri': artist['uri']
+            }
+            artists.append(simplified_artist)
         
         if len(artists) >= 100:
             break
@@ -57,7 +86,6 @@ def get_user_playlists(access_token):
 
     playlists = []
     while url and len(playlists) < 100:
-        print(f"Making request to URL: {url}")
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -68,9 +96,13 @@ def get_user_playlists(access_token):
             return None
 
         data = response.json()
-        print("Received data:", data)
-        
-        playlists.extend(data['items'])
+        for playlist in data['items']:
+            simplified_playlist = {
+                'id': playlist['id'],
+                'name': playlist['name'],
+                'uri': playlist['uri']
+            }
+            playlists.append(simplified_playlist)
         
         if len(playlists) >= 100:
             break
@@ -87,7 +119,6 @@ def get_saved_shows(access_token):
 
     shows = []
     while url:
-        print(f"Making request to URL: {url}")
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -98,9 +129,15 @@ def get_saved_shows(access_token):
             return None
 
         data = response.json()
-        print("Received data:", data)
-        
-        shows.extend(data['items'])
+        for show in data['items']:
+            simplified_show = {
+                'id': show['show']['id'],
+                'name': show['show']['name'],
+                'description': show['show']['description'],
+                'publisher': show['show']['publisher'],
+                'uri': show['show']['uri']
+            }
+            shows.append(simplified_show)
         
         url = data['next']
 
@@ -114,7 +151,6 @@ def get_recently_played_tracks(access_token):
 
     recent_tracks = []
     while url:
-        print(f"Making request to URL: {url}")
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -125,11 +161,47 @@ def get_recently_played_tracks(access_token):
             return None
 
         data = response.json()
-        print("Received data:", data)
-        
-        recent_tracks.extend(data['items'])
+        for track in data['items']:
+            simplified_track = {
+                'id': track['track']['id'],
+                'name': track['track']['name'],
+                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['track']['artists']],
+                'album': {'name': track['track']['album']['name'], 'id': track['track']['album']['id']},
+                'played_at': track['played_at'],
+                'uri': track['track']['uri']
+            }
+            recent_tracks.append(simplified_track)
         
         url = data.get('next')
 
     return recent_tracks
 
+def gather_spotify_data(access_token):
+    # Fetch data using the helper functions
+    # time_ranges = ['short_term', 'medium_term', 'long_term']
+    time_ranges = ['short_term', 'medium_term', 'long_term']
+    top_artists_data = {}
+    top_tracks_data = {}
+
+    for time_range in time_ranges:
+        top_artists_data[time_range] = get_top_items(access_token, time_range, 'artists')
+        top_tracks_data[time_range] = get_top_items(access_token, time_range, 'tracks')
+
+    # followed_artists = get_followed_artists(access_token)
+    # playlists = get_user_playlists(access_token)
+    # saved_shows = get_saved_shows(access_token)
+    # recent_tracks = get_recently_played_tracks(access_token)
+
+    spotify_data = {
+        'top_artists': top_artists_data,
+        'top_tracks': top_tracks_data,
+        # 'followed_artists': followed_artists,
+        # 'playlists': playlists,
+        # 'saved_shows': saved_shows,
+        # 'recent_tracks': recent_tracks
+    }
+
+    # Cache the data
+    cache.set('spotify_data', spotify_data)
+    print("Spotify data cached:", spotify_data)  # Debug statement
+    return spotify_data
