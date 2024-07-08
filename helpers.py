@@ -176,9 +176,8 @@ def get_recently_played_tracks(access_token):
 
     return recent_tracks
 
-def gather_spotify_data(access_token):
+def gather_spotify_data(access_token, cache):
     # Fetch data using the helper functions
-    # time_ranges = ['short_term', 'medium_term', 'long_term']
     time_ranges = ['short_term', 'medium_term', 'long_term']
     top_artists_data = {}
     top_tracks_data = {}
@@ -187,21 +186,11 @@ def gather_spotify_data(access_token):
         top_artists_data[time_range] = get_top_items(access_token, time_range, 'artists')
         top_tracks_data[time_range] = get_top_items(access_token, time_range, 'tracks')
 
-    # followed_artists = get_followed_artists(access_token)
-    # playlists = get_user_playlists(access_token)
-    # saved_shows = get_saved_shows(access_token)
-    # recent_tracks = get_recently_played_tracks(access_token)
-
     spotify_data = {
         'top_artists': top_artists_data,
-        'top_tracks': top_tracks_data,
-        # 'followed_artists': followed_artists,
-        # 'playlists': playlists,
-        # 'saved_shows': saved_shows,
-        # 'recent_tracks': recent_tracks
+        'top_tracks': top_tracks_data
     }
 
-    # Cache the data
-    cache.set('spotify_data', spotify_data)
-    print("Spotify data cached:", spotify_data)  # Debug statement
+    print("Spotify data to be cached:", spotify_data)  # Debug statement
+    cache.set('spotify_data', spotify_data)  # Explicitly cache the data
     return spotify_data
