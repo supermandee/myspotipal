@@ -5,6 +5,7 @@ import os
 import base64
 from dotenv import load_dotenv
 from flask_caching import Cache
+from datetime import timedelta
 from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, gather_spotify_data, summarize_data
 from llm_client import LLMClient
 
@@ -15,7 +16,10 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_APP_SECRET_KEY')
 
 # Configure Flask-Caching
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 3600})  # Cache timeout set to 1 hour
+
+# Configure session timeout
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
@@ -73,63 +77,10 @@ def ensure_valid_access_token():
 
     if response.status_code == 401:  # Token expired
         access_token = refresh_token()
+        if not access_token:
+            return None  # If refresh fails, return None
 
     return access_token
-
-def gather_spotify_data(access_token):
-    time_ranges = ['short_term', 'medium_term', 'long_term']
-    top_artists_data = {}
-    top_tracks_data = {}
-    summaries = {}
-
-    for time_range in time_ranges:
-        top_artists = get_top_items(access_token, time_range, 'artists')
-        top_tracks = get_top_items(access_token, time_range, 'tracks')
-
-        top_artists_data[time_range] = top_artists
-        top_tracks_data[time_range] = top_tracks
-
-        summaries[f'{time_range}_artists_summary'] = summarize_data(top_artists, 'artists')
-        summaries[f'{time_range}_tracks_summary'] = summarize_data(top_tracks, 'tracks')
-
-    spotify_data = {
-        'top_artists': top_artists_data,
-        'top_tracks': top_tracks_data,
-        'summaries': summaries
-    }
-
-    cache.set('spotify_data', spotify_data)
-    print("Spotify data cached:", spotify_data)  # Debug statement
-    return spotify_data
-
-# def gather_spotify_data(access_token):
-#     # Fetch data using the helper functions
-#     time_ranges = ['short_term', 'medium_term', 'long_term']
-#     top_artists_data = {}
-#     top_tracks_data = {}
-
-#     for time_range in time_ranges:
-#         top_artists_data[time_range] = get_top_items(access_token, time_range, 'artists')
-#         top_tracks_data[time_range] = get_top_items(access_token, time_range, 'tracks')
-
-#     # followed_artists = get_followed_artists(access_token)
-#     # playlists = get_user_playlists(access_token)
-#     # saved_shows = get_saved_shows(access_token)
-#     # recent_tracks = get_recently_played_tracks(access_token)
-
-#     spotify_data = {
-#         'top_artists': top_artists_data,
-#         'top_tracks': top_tracks_data,
-#         # 'followed_artists': followed_artists,
-#         # 'playlists': playlists,
-#         # 'saved_shows': saved_shows,
-#         # 'recent_tracks': recent_tracks
-#     }
-
-#     # Cache the data
-#     cache.set('spotify_data', spotify_data)
-#     print("Spotify data cached:", spotify_data)  # Debug statement
-#     return spotify_data
 
 @app.route('/')
 def index():
@@ -176,7 +127,7 @@ def callback():
     session['user_profile'] = user_profile  # Store user profile in session
 
     # Gather and cache Spotify data
-    gather_spotify_data(session['access_token'])
+    spotify_data = gather_spotify_data(session['access_token'], cache)
     
     return redirect(url_for('chat'))
 
@@ -282,22 +233,27 @@ def chat():
 def ask():
     access_token = ensure_valid_access_token()  # Ensure access token is valid
     if not access_token:
-        return redirect(url_for('login'))
+        print("Access token is invalid or expired, redirecting to login")
+        return jsonify({"error": "Access token is invalid or expired, redirecting to login"}), 401
 
     spotify_data = cache.get('spotify_data')  # Get cached data for chatbot
     if not spotify_data:
-        return jsonify({"error": "No Spotify data cached"}), 500
+        print("No Spotify data cached, gathering new data")
+        spotify_data = gather_spotify_data(access_token, cache)
+        if not spotify_data:  # If data is still not available
+            return jsonify({"error": "No Spotify data available, please log in again"}), 401
 
     query = request.form.get('query')
     if not query:
+        print("No query provided")
         return jsonify({"error": "No query provided"}), 400
 
     response = llm_client.process_query(query, spotify_data, access_token)
     if response:
         return jsonify({"answer": response})
     else:
+        print("Failed to get a response from the OpenAI API")
         return jsonify({"error": "Failed to get a response from the OpenAI API"}), 500
-
 @app.route('/cached-data')
 def cached_data():
     spotify_data = cache.get('spotify_data')
@@ -308,4 +264,3 @@ def cached_data():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5001)
-
