@@ -292,7 +292,7 @@ def ask():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    response = llm_client.process_query(query, spotify_data)
+    response = llm_client.process_query(query, spotify_data, access_token)
     if response:
         return jsonify({"answer": response})
     else:
