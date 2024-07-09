@@ -49,30 +49,59 @@ class LLMClient:
         
         try:
             if query_type == 'top_artists':
-                data = get_top_items(access_token, 'short_term', 'artists')
+                detailed_prompt = (
+                    "The user wants to know their top artists. Provide a list of the top artists based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             elif query_type == 'top_tracks':
-                data = get_top_items(access_token, 'short_term', 'tracks')
+                detailed_prompt = (
+                    "The user wants to know their top tracks. Provide a list of the top tracks based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             elif query_type == 'followed_artists':
-                data = get_followed_artists(access_token)
+                detailed_prompt = (
+                    "The user wants to know the artists they follow. Provide a list of followed artists based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             elif query_type == 'playlists':
-                data = get_user_playlists(access_token)
+                detailed_prompt = (
+                    "The user wants to know their playlists. Provide a list of playlists based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             elif query_type == 'saved_shows':
-                data = get_saved_shows(access_token)
+                detailed_prompt = (
+                    "The user wants to know their saved shows. Provide a list of saved shows based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             elif query_type == 'recent_tracks':
-                data = get_recently_played_tracks(access_token)
+                detailed_prompt = (
+                    "The user wants to know their recently played tracks. Provide a list of recently played tracks based on the provided Spotify data.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
             else:
-                data = spotify_data  # Default to cached data if no specific query is matched
+                detailed_prompt = (
+                    "Based on the user's Spotify data, provide relevant information.\n"
+                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                )
+
+            if 'recommend' in query.lower():
+                detailed_prompt = (
+                    "The user wants new song recommendations. Use the provided Spotify data to understand the user's preferences, "
+                    "and also reference broader music knowledge to suggest new songs and artists that the user might like but hasn't listened to yet. "
+                    "Here is the user's Spotify data:\n"
+                    f"{spotify_data}\nUser Query: {query}\nResponse:"
+                )
 
             messages = [
                 {"role": "system", "content": "You are a personal Spotify assistant. Based on the user's query and their Spotify data, provide a helpful and accurate response."},
-                {"role": "user", "content": f"User Query: {query}\nSpotify Data: {data}\nResponse:"}
+                {"role": "user", "content": detailed_prompt}
             ]
             print("Messages Sent to OpenAI API:", messages)  # Log messages
 
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=messages,
-                max_tokens=150
+                max_tokens=400  # Increase the max tokens value to ensure the complete response
             )
             print("Response from OpenAI API:", response)  # Log response
             return response.choices[0].message.content.strip()
