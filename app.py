@@ -254,6 +254,7 @@ def ask():
     else:
         print("Failed to get a response from the OpenAI API")
         return jsonify({"error": "Failed to get a response from the OpenAI API"}), 500
+    
 @app.route('/cached-data')
 def cached_data():
     spotify_data = cache.get('spotify_data')
