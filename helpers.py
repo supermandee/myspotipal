@@ -1,10 +1,10 @@
 import requests
 
-def get_top_items(access_token, time_range, item_type, limit=10):
+def get_top_items(access_token, time_range, item_type):
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
-    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?limit={limit}&time_range={time_range}', headers=headers)
+    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?&time_range={time_range}', headers=headers)
     
     if response.status_code != 200:
         print(f"Error fetching top {item_type} for {time_range}:")
