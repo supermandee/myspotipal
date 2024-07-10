@@ -59,29 +59,34 @@ class LLMClient:
                     f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'followed_artists':
+                data = get_followed_artists(access_token)
                 detailed_prompt = (
                     "The user wants to know the artists they follow. Provide a list of followed artists based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'playlists':
+                data = get_user_playlists(access_token)
                 detailed_prompt = (
                     "The user wants to know their playlists. Provide a list of playlists based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'saved_shows':
+                data = get_saved_shows(access_token)
                 detailed_prompt = (
                     "The user wants to know their saved shows. Provide a list of saved shows based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'recent_tracks':
+                data = get_recently_played_tracks(access_token)
                 detailed_prompt = (
                     "The user wants to know their recently played tracks. Provide a list of recently played tracks based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             else:
+                data = spotify_data
                 detailed_prompt = (
                     "Based on the user's Spotify data, provide relevant information.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
 
             if 'recommend' in query.lower():
@@ -89,7 +94,7 @@ class LLMClient:
                     "The user wants new song recommendations. Use the provided Spotify data to understand the user's preferences, "
                     "and also reference broader music knowledge to suggest new songs and artists that the user might like but hasn't listened to yet. "
                     "Here is the user's Spotify data:\n"
-                    f"{spotify_data}\nUser Query: {query}\nResponse:"
+                    f"{data}\nUser Query: {query}\nResponse:"
                 )
 
             messages = [
@@ -111,3 +116,4 @@ class LLMClient:
         except Exception as e:
             print(f"Unexpected error in process_query: {e}")
             return "An unexpected error occurred."
+
