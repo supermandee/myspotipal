@@ -183,3 +183,60 @@ def gather_spotify_data(access_token, cache):
     print("Spotify data to be cached:", spotify_data)  # Debug statement
     cache.set('spotify_data', spotify_data)  # Explicitly cache the data
     return spotify_data
+
+def search_artist(artist_name, access_token):
+    url = 'https://api.spotify.com/v1/search'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    params = {
+        'q': artist_name,
+        'type': 'artist',
+        'limit': 1
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+    
+    if response.status_code != 200:
+        print("Error searching for artist:")
+        print("Request URL:", url)
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        return None
+
+    data = response.json()
+    if data['artists']['items']:
+        artist = data['artists']['items'][0]
+        return {
+            'name': artist['name'],
+            'genres': artist['genres'],
+            'followers': artist['followers']['total'],
+            'popularity': artist['popularity'],
+            'url': artist['external_urls']['spotify']
+        }
+    else:
+        return None
+    
+def get_artist_info(self, artist_id, access_token):
+    url = f'https://api.spotify.com/v1/artists/{artist_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code != 200:
+        print("Error fetching artist info:")
+        print("Request URL:", url)
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        return None
+
+    artist = response.json()
+    return {
+        'name': artist['name'],
+        'genres': artist['genres'],
+        'followers': artist['followers']['total'],
+        'popularity': artist['popularity'],
+        'url': artist['external_urls']['spotify']
+    }
