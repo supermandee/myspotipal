@@ -1,7 +1,8 @@
 from openai import OpenAI, OpenAIError
 import os
 from dotenv import load_dotenv
-from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks
+from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, search_artist, get_artist_info
+import uuid
 
 class LLMClient:
     def __init__(self):
@@ -9,10 +10,15 @@ class LLMClient:
         self.client = OpenAI(
             api_key=os.getenv('OPENAI_API_KEY')
         )
+        self.memory = {}  # Simple in-memory storage for session
+        self.access_token = os.getenv('SPOTIFY_ACCESS_TOKEN')
+
+    def generate_session_id(self):
+        return str(uuid.uuid4())
 
     def classify_query(self, query):
         messages = [
-            {"role": "system", "content": "You are a helpful assistant. Classify the following query into one of the categories: top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks, or unknown. Respond with only the category."},
+            {"role": "system", "content": "You are a helpful assistant. Classify the following query into one of the categories: top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks, artist_info, or unknown. Respond with only the category."},
             {"role": "user", "content": "What are my favorite artists?"},
             {"role": "assistant", "content": "top_artists"},
             {"role": "user", "content": "Show me my top songs."},
@@ -23,6 +29,8 @@ class LLMClient:
             {"role": "assistant", "content": "playlists"},
             {"role": "user", "content": "What podcasts do I have saved?"},
             {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "Tell me about Modern Sophia."},
+            {"role": "assistant", "content": "artist_info"},
             {"role": "user", "content": "What have I listened to recently?"},
             {"role": "assistant", "content": "recent_tracks"},
             {"role": "user", "content": query}
@@ -44,8 +52,14 @@ class LLMClient:
             print(f"Unexpected error in classify_query: {e}")
             return "unknown"
 
-    def process_query(self, query, spotify_data, access_token):
+    def process_query(self, query, spotify_data, access_token, session_id):
         query_type = self.classify_query(query)
+
+        if session_id not in self.memory:
+            self.memory[session_id] = {"history": []}
+
+        # Append new query to session history
+        self.memory[session_id]["history"].append({"query": query})
         
         try:
             if query_type == 'top_artists':
@@ -83,10 +97,18 @@ class LLMClient:
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'artist_info':
-                detailed_prompt = (
-                    "The user wants to know about a specific artist. Use your broader music knowledge to provide detailed information about the artist mentioned in the query.\n"
-                    f"User Query: {query}\nResponse:"
-                )
+                artist_name = query.split("about")[-1].strip()
+                artist_info = search_artist(artist_name, access_token)
+                if artist_info:
+                    detailed_prompt = (
+                        "The user wants to know about an artist. Provide detailed information about the artist.\n"
+                        f"Here is the information about {artist_name}:\n{artist_info}\nUser Query: {query}\nResponse:"
+                    )
+                else:
+                    detailed_prompt = (
+                        "The user wants to know about an artist, but the information is not available in the Spotify data. Use general knowledge to provide information about the artist.\n"
+                        f"User Query: {query}\nResponse:"
+                    )
             else:
                 data = spotify_data
                 detailed_prompt = (
@@ -121,4 +143,3 @@ class LLMClient:
         except Exception as e:
             print(f"Unexpected error in process_query: {e}")
             return "An unexpected error occurred."
-
