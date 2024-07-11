@@ -46,7 +46,7 @@ def get_followed_artists(access_token):
     }
 
     artists = []
-    while url and len(artists) < 100:
+    while url:
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -59,24 +59,17 @@ def get_followed_artists(access_token):
         data = response.json()
         for artist in data['artists']['items']:
             simplified_artist = {
-                'id': artist['id'],
                 'name': artist['name'],
-                'genres': artist['genres'],
-                'popularity': artist.get('popularity'),
-                'uri': artist['uri']
             }
             artists.append(simplified_artist)
         
-        if len(artists) >= 100:
-            break
-        
-        if 'cursors' in data['artists'] and 'after' in data['artists']['cursors']:
-            after = data['artists']['cursors']['after']
-            url = f'https://api.spotify.com/v1/me/following?type=artist&limit=50&after={after}'
+        if 'next' in data['artists'] and data['artists']['next']:
+            url = data['artists']['next']
         else:
             break
 
-    return artists[:100]
+    return artists
+
 
 def get_user_playlists(access_token):
     url = 'https://api.spotify.com/v1/me/playlists?limit=50'
@@ -131,11 +124,7 @@ def get_saved_shows(access_token):
         data = response.json()
         for show in data['items']:
             simplified_show = {
-                'id': show['show']['id'],
                 'name': show['show']['name'],
-                'description': show['show']['description'],
-                'publisher': show['show']['publisher'],
-                'uri': show['show']['uri']
             }
             shows.append(simplified_show)
         

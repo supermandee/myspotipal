@@ -82,6 +82,11 @@ class LLMClient:
                     "The user wants to know their recently played tracks. Provide a list of recently played tracks based on the provided Spotify data.\n"
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
+            elif query_type == 'artist_info':
+                detailed_prompt = (
+                    "The user wants to know about a specific artist. Use your broader music knowledge to provide detailed information about the artist mentioned in the query.\n"
+                    f"User Query: {query}\nResponse:"
+                )
             else:
                 data = spotify_data
                 detailed_prompt = (
