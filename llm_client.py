@@ -109,6 +109,45 @@ class LLMClient:
                         "The user wants to know about an artist, but the information is not available in the Spotify data. Use general knowledge to provide information about the artist.\n"
                         f"User Query: {query}\nResponse:"
                     )
+            elif query_type == 'album_info':
+                album_name = query.split("about")[-1].strip()
+                album_info = search_album(album_name, access_token)
+                if album_info:
+                    detailed_prompt = (
+                        "The user wants to know about an album. Provide detailed information about the album.\n"
+                        f"Here is the information about {album_name}:\n{album_info}\nUser Query: {query}\nResponse:"
+                    )
+                else:
+                    detailed_prompt = (
+                        "The user wants to know about an album, but the information is not available in the Spotify data. Use general knowledge to provide information about the album.\n"
+                        f"User Query: {query}\nResponse:"
+                    )
+            elif query_type == 'show_info':
+                show_name = query.split("about")[-1].strip()
+                show_info = search_show(show_name, access_token)
+                if show_info:
+                    detailed_prompt = (
+                        "The user wants to know about a show. Provide detailed information about the show.\n"
+                        f"Here is the information about {show_name}:\n{show_info}\nUser Query: {query}\nResponse:"
+                    )
+                else:
+                    detailed_prompt = (
+                        "The user wants to know about a show, but the information is not available in the Spotify data. Use general knowledge to provide information about the show.\n"
+                        f"User Query: {query}\nResponse:"
+                    )
+            elif query_type == 'podcast_info':
+                podcast_name = query.split("about")[-1].strip()
+                podcast_info = search_podcast(podcast_name, access_token)
+                if podcast_info:
+                    detailed_prompt = (
+                        "The user wants to know about a podcast. Provide detailed information about the podcast.\n"
+                        f"Here is the information about {podcast_name}:\n{podcast_info}\nUser Query: {query}\nResponse:"
+                    )
+                else:
+                    detailed_prompt = (
+                        "The user wants to know about a podcast, but the information is not available in the Spotify data. Use general knowledge to provide information about the podcast.\n"
+                        f"User Query: {query}\nResponse:"
+                    )
             else:
                 data = spotify_data
                 detailed_prompt = (
@@ -137,6 +176,11 @@ class LLMClient:
             )
             print("Response from OpenAI API:", response)  # Log response
             return response.choices[0].message.content.strip()
+ 
+             # Append the response to session history
+            self.memory[session_id]["history"].append({"response": response_text})
+            return response_text
+        
         except OpenAIError as e:
             print(f"Error processing query with LLM: {e}")
             return "Sorry, I couldn't process your request at this time."
