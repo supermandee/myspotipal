@@ -8,9 +8,13 @@ from flask_caching import Cache
 from datetime import timedelta
 from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, gather_spotify_data, summarize_data
 from llm_client import LLMClient
+import uuid
 
 # Load environment variables from .env file
 load_dotenv()
+
+def generate_session_id():
+    return str(uuid.uuid4())
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_APP_SECRET_KEY')
@@ -247,13 +251,19 @@ def ask():
     if not query:
         print("No query provided")
         return jsonify({"error": "No query provided"}), 400
+    
+    if 'session_id' not in session:
+        session['session_id'] = generate_session_id()
 
-    response = llm_client.process_query(query, spotify_data, access_token)
+    session_id = session['session_id']
+
+    response = llm_client.process_query(query, spotify_data, access_token, session_id)
     if response:
         return jsonify({"answer": response})
     else:
         print("Failed to get a response from the OpenAI API")
         return jsonify({"error": "Failed to get a response from the OpenAI API"}), 500
+
     
 @app.route('/cached-data')
 def cached_data():
