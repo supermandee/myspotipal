@@ -1,10 +1,10 @@
 import requests
 
-def get_top_items(access_token, time_range, item_type, limit=10):
+def get_top_items(access_token, time_range, item_type):
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
-    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?limit={limit}&time_range={time_range}', headers=headers)
+    response = requests.get(f'https://api.spotify.com/v1/me/top/{item_type}?&time_range={time_range}', headers=headers)
     
     if response.status_code != 200:
         print(f"Error fetching top {item_type} for {time_range}:")
@@ -46,7 +46,7 @@ def get_followed_artists(access_token):
     }
 
     artists = []
-    while url and len(artists) < 100:
+    while url:
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -59,24 +59,17 @@ def get_followed_artists(access_token):
         data = response.json()
         for artist in data['artists']['items']:
             simplified_artist = {
-                'id': artist['id'],
                 'name': artist['name'],
-                'genres': artist['genres'],
-                'popularity': artist.get('popularity'),
-                'uri': artist['uri']
             }
             artists.append(simplified_artist)
         
-        if len(artists) >= 100:
-            break
-        
-        if 'cursors' in data['artists'] and 'after' in data['artists']['cursors']:
-            after = data['artists']['cursors']['after']
-            url = f'https://api.spotify.com/v1/me/following?type=artist&limit=50&after={after}'
+        if 'next' in data['artists'] and data['artists']['next']:
+            url = data['artists']['next']
         else:
             break
 
-    return artists[:100]
+    return artists
+
 
 def get_user_playlists(access_token):
     url = 'https://api.spotify.com/v1/me/playlists?limit=50'
@@ -131,11 +124,7 @@ def get_saved_shows(access_token):
         data = response.json()
         for show in data['items']:
             simplified_show = {
-                'id': show['show']['id'],
                 'name': show['show']['name'],
-                'description': show['show']['description'],
-                'publisher': show['show']['publisher'],
-                'uri': show['show']['uri']
             }
             shows.append(simplified_show)
         
@@ -163,12 +152,9 @@ def get_recently_played_tracks(access_token):
         data = response.json()
         for track in data['items']:
             simplified_track = {
-                'id': track['track']['id'],
                 'name': track['track']['name'],
                 'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['track']['artists']],
                 'album': {'name': track['track']['album']['name'], 'id': track['track']['album']['id']},
-                'played_at': track['played_at'],
-                'uri': track['track']['uri']
             }
             recent_tracks.append(simplified_track)
         
@@ -194,3 +180,60 @@ def gather_spotify_data(access_token, cache):
     print("Spotify data to be cached:", spotify_data)  # Debug statement
     cache.set('spotify_data', spotify_data)  # Explicitly cache the data
     return spotify_data
+
+def search_artist(artist_name, access_token):
+    url = 'https://api.spotify.com/v1/search'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    params = {
+        'q': artist_name,
+        'type': 'artist',
+        'limit': 1
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+    
+    if response.status_code != 200:
+        print("Error searching for artist:")
+        print("Request URL:", url)
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        return None
+
+    data = response.json()
+    if data['artists']['items']:
+        artist = data['artists']['items'][0]
+        return {
+            'name': artist['name'],
+            'genres': artist['genres'],
+            'followers': artist['followers']['total'],
+            'popularity': artist['popularity'],
+            'url': artist['external_urls']['spotify']
+        }
+    else:
+        return None
+    
+def get_artist_info(self, artist_id, access_token):
+    url = f'https://api.spotify.com/v1/artists/{artist_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code != 200:
+        print("Error fetching artist info:")
+        print("Request URL:", url)
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        return None
+
+    artist = response.json()
+    return {
+        'name': artist['name'],
+        'genres': artist['genres'],
+        'followers': artist['followers']['total'],
+        'popularity': artist['popularity'],
+        'url': artist['external_urls']['spotify']
+    }
