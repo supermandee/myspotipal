@@ -152,12 +152,9 @@ def get_recently_played_tracks(access_token):
         data = response.json()
         for track in data['items']:
             simplified_track = {
-                'id': track['track']['id'],
                 'name': track['track']['name'],
                 'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['track']['artists']],
                 'album': {'name': track['track']['album']['name'], 'id': track['track']['album']['id']},
-                'played_at': track['played_at'],
-                'uri': track['track']['uri']
             }
             recent_tracks.append(simplified_track)
         
