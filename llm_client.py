@@ -33,6 +33,8 @@ class LLMClient:
             {"role": "assistant", "content": "artist_info"},
             {"role": "user", "content": "What have I listened to recently?"},
             {"role": "assistant", "content": "recent_tracks"},
+            {"role": "user", "content": "Recommend me some podcasts."},
+            {"role": "assistant", "content": "saved_shows"},
             {"role": "user", "content": query}
         ]
         
@@ -87,7 +89,7 @@ class LLMClient:
             elif query_type == 'saved_shows':
                 data = get_saved_shows(access_token)
                 detailed_prompt = (
-                    "The user wants to know their saved shows. Provide a list of saved shows based on the provided Spotify data.\n"
+                    "The user wants to know their saved shows. Provide a list of saved shows, including podcasts, based on the provided Spotify data.\n"
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             elif query_type == 'recent_tracks':
@@ -109,45 +111,45 @@ class LLMClient:
                         "The user wants to know about an artist, but the information is not available in the Spotify data. Use general knowledge to provide information about the artist.\n"
                         f"User Query: {query}\nResponse:"
                     )
-            elif query_type == 'album_info':
-                album_name = query.split("about")[-1].strip()
-                album_info = search_album(album_name, access_token)
-                if album_info:
-                    detailed_prompt = (
-                        "The user wants to know about an album. Provide detailed information about the album.\n"
-                        f"Here is the information about {album_name}:\n{album_info}\nUser Query: {query}\nResponse:"
-                    )
-                else:
-                    detailed_prompt = (
-                        "The user wants to know about an album, but the information is not available in the Spotify data. Use general knowledge to provide information about the album.\n"
-                        f"User Query: {query}\nResponse:"
-                    )
-            elif query_type == 'show_info':
-                show_name = query.split("about")[-1].strip()
-                show_info = search_show(show_name, access_token)
-                if show_info:
-                    detailed_prompt = (
-                        "The user wants to know about a show. Provide detailed information about the show.\n"
-                        f"Here is the information about {show_name}:\n{show_info}\nUser Query: {query}\nResponse:"
-                    )
-                else:
-                    detailed_prompt = (
-                        "The user wants to know about a show, but the information is not available in the Spotify data. Use general knowledge to provide information about the show.\n"
-                        f"User Query: {query}\nResponse:"
-                    )
-            elif query_type == 'podcast_info':
-                podcast_name = query.split("about")[-1].strip()
-                podcast_info = search_podcast(podcast_name, access_token)
-                if podcast_info:
-                    detailed_prompt = (
-                        "The user wants to know about a podcast. Provide detailed information about the podcast.\n"
-                        f"Here is the information about {podcast_name}:\n{podcast_info}\nUser Query: {query}\nResponse:"
-                    )
-                else:
-                    detailed_prompt = (
-                        "The user wants to know about a podcast, but the information is not available in the Spotify data. Use general knowledge to provide information about the podcast.\n"
-                        f"User Query: {query}\nResponse:"
-                    )
+            # elif query_type == 'album_info':
+            #     album_name = query.split("about")[-1].strip()
+            #     album_info = search_album(album_name, access_token)
+            #     if album_info:
+            #         detailed_prompt = (
+            #             "The user wants to know about an album. Provide detailed information about the album.\n"
+            #             f"Here is the information about {album_name}:\n{album_info}\nUser Query: {query}\nResponse:"
+            #         )
+            #     else:
+            #         detailed_prompt = (
+            #             "The user wants to know about an album, but the information is not available in the Spotify data. Use general knowledge to provide information about the album.\n"
+            #             f"User Query: {query}\nResponse:"
+            #         )
+            # elif query_type == 'show_info':
+            #     show_name = query.split("about")[-1].strip()
+            #     show_info = search_show(show_name, access_token)
+            #     if show_info:
+            #         detailed_prompt = (
+            #             "The user wants to know about a show. Provide detailed information about the show.\n"
+            #             f"Here is the information about {show_name}:\n{show_info}\nUser Query: {query}\nResponse:"
+            #         )
+            #     else:
+            #         detailed_prompt = (
+            #             "The user wants to know about a show, but the information is not available in the Spotify data. Use general knowledge to provide information about the show.\n"
+            #             f"User Query: {query}\nResponse:"
+            #         )
+            # elif query_type == 'podcast_info':
+            #     podcast_name = query.split("about")[-1].strip()
+            #     podcast_info = search_podcast(podcast_name, access_token)
+            #     if podcast_info:
+            #         detailed_prompt = (
+            #             "The user wants to know about a podcast. Provide detailed information about the podcast.\n"
+            #             f"Here is the information about {podcast_name}:\n{podcast_info}\nUser Query: {query}\nResponse:"
+            #         )
+            #     else:
+            #         detailed_prompt = (
+            #             "The user wants to know about a podcast, but the information is not available in the Spotify data. Use general knowledge to provide information about the podcast.\n"
+            #             f"User Query: {query}\nResponse:"
+            #         )
             else:
                 data = spotify_data
                 detailed_prompt = (
@@ -155,10 +157,17 @@ class LLMClient:
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
 
-            if 'recommend' in query.lower():
+            if 'recommend song' in query.lower():
                 detailed_prompt = (
                     "The user wants new song recommendations. Use the provided Spotify data to understand the user's preferences, "
                     "and also reference broader music knowledge to suggest new songs and artists that the user might like but hasn't listened to yet. "
+                    "Here is the user's Spotify data:\n"
+                    f"{data}\nUser Query: {query}\nResponse:"
+                )
+            if 'recommend shows' in query.lower():
+                detailed_prompt = (
+                    "The user wants new show recommendations. Use the provided Spotify data to understand the user's preferences, "
+                    "and also reference broader knowledge to suggest new shows and podcasts that the user might like but hasn't listened to yet. "
                     "Here is the user's Spotify data:\n"
                     f"{data}\nUser Query: {query}\nResponse:"
                 )
