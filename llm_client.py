@@ -35,6 +35,10 @@ class LLMClient:
             {"role": "assistant", "content": "recent_tracks"},
             {"role": "user", "content": "Recommend me some podcasts."},
             {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "What audiobooks do I have saved?"},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "List my saved shows."},
+            {"role": "assistant", "content": "saved_shows"},
             {"role": "user", "content": query}
         ]
         
@@ -53,7 +57,22 @@ class LLMClient:
         except Exception as e:
             print(f"Unexpected error in classify_query: {e}")
             return "unknown"
+    def classify_show(show):
+        """
+        Classify the type of show based on its metadata.
+        """
+        description = show.get("description", "").lower()
+        publisher = show.get("publisher", "").lower()
 
+        audiobook_keywords = ["audiobook", "narrator", "narrated by", "read by", "author"]
+        is_audiobook = any(keyword in description for keyword in audiobook_keywords)
+
+        print(f"Show: {show.get('name', 'Unknown Show')}, Description: {description}, Publisher: {publisher}, Is Audiobook: {is_audiobook}")
+
+        if is_audiobook:
+            return "audiobook"
+        else:
+            return "podcast"
     def process_query(self, query, spotify_data, access_token, session_id):
         query_type = self.classify_query(query)
 
@@ -88,10 +107,32 @@ class LLMClient:
                 )
             elif query_type == 'saved_shows':
                 data = get_saved_shows(access_token)
-                detailed_prompt = (
-                    "The user wants to know their saved shows. Provide a list of saved shows, including podcasts, based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
-                )
+                print(f"Saved Shows Data: {data}")
+                podcasts = []
+                audiobooks = []
+
+                if 'items' in data:
+                    for item in data['items']:
+                        show = item.get('show', {})
+                        print(f"Processing show: {show}")
+                        show_type = self.classify_show(show)
+                        if show_type == "podcast":
+                            podcasts.append(show.get('name', 'Unknown Show'))
+                        elif show_type == "audiobook":
+                            audiobooks.append(show.get('name', 'Unknown Show'))
+                
+                print(f"Podcasts: {podcasts}")
+                print(f"Audiobooks: {audiobooks}")
+
+                if not podcasts and not audiobooks:
+                    detailed_prompt = (
+                        "Based on your Spotify data, it appears that you haven't saved any podcasts or audiobooks yet. To save a show, just click on the 'Heart' icon next to the show name."
+                    )
+                else:
+                    detailed_prompt = (
+                        "The user wants to know their saved shows. Provide a list of saved podcasts and audiobooks based on the provided Spotify data.\n"
+                        f"Podcasts:\n{podcasts}\nAudiobooks:\n{audiobooks}\nUser Query: {query}\nResponse:"
+                    )
             elif query_type == 'recent_tracks':
                 data = get_recently_played_tracks(access_token)
                 detailed_prompt = (
@@ -111,45 +152,6 @@ class LLMClient:
                         "The user wants to know about an artist, but the information is not available in the Spotify data. Use general knowledge to provide information about the artist.\n"
                         f"User Query: {query}\nResponse:"
                     )
-            # elif query_type == 'album_info':
-            #     album_name = query.split("about")[-1].strip()
-            #     album_info = search_album(album_name, access_token)
-            #     if album_info:
-            #         detailed_prompt = (
-            #             "The user wants to know about an album. Provide detailed information about the album.\n"
-            #             f"Here is the information about {album_name}:\n{album_info}\nUser Query: {query}\nResponse:"
-            #         )
-            #     else:
-            #         detailed_prompt = (
-            #             "The user wants to know about an album, but the information is not available in the Spotify data. Use general knowledge to provide information about the album.\n"
-            #             f"User Query: {query}\nResponse:"
-            #         )
-            # elif query_type == 'show_info':
-            #     show_name = query.split("about")[-1].strip()
-            #     show_info = search_show(show_name, access_token)
-            #     if show_info:
-            #         detailed_prompt = (
-            #             "The user wants to know about a show. Provide detailed information about the show.\n"
-            #             f"Here is the information about {show_name}:\n{show_info}\nUser Query: {query}\nResponse:"
-            #         )
-            #     else:
-            #         detailed_prompt = (
-            #             "The user wants to know about a show, but the information is not available in the Spotify data. Use general knowledge to provide information about the show.\n"
-            #             f"User Query: {query}\nResponse:"
-            #         )
-            # elif query_type == 'podcast_info':
-            #     podcast_name = query.split("about")[-1].strip()
-            #     podcast_info = search_podcast(podcast_name, access_token)
-            #     if podcast_info:
-            #         detailed_prompt = (
-            #             "The user wants to know about a podcast. Provide detailed information about the podcast.\n"
-            #             f"Here is the information about {podcast_name}:\n{podcast_info}\nUser Query: {query}\nResponse:"
-            #         )
-            #     else:
-            #         detailed_prompt = (
-            #             "The user wants to know about a podcast, but the information is not available in the Spotify data. Use general knowledge to provide information about the podcast.\n"
-            #             f"User Query: {query}\nResponse:"
-            #         )
             else:
                 data = spotify_data
                 detailed_prompt = (
@@ -184,12 +186,12 @@ class LLMClient:
                 max_tokens=400  # Increase the max tokens value to ensure the complete response
             )
             print("Response from OpenAI API:", response)  # Log response
-            return response.choices[0].message.content.strip()
- 
-             # Append the response to session history
+            response_text = response.choices[0].message.content.strip()
+            
+            # Append the response to session history
             self.memory[session_id]["history"].append({"response": response_text})
             return response_text
-        
+            
         except OpenAIError as e:
             print(f"Error processing query with LLM: {e}")
             return "Sorry, I couldn't process your request at this time."
