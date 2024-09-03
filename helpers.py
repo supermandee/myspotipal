@@ -122,14 +122,18 @@ def get_saved_shows(access_token):
             return None
 
         data = response.json()
-        for show in data['items']:
+        for item in data['items']:
+            show = item.get('show', {})
             simplified_show = {
-                'name': show['show']['name'],
+                'name': show.get('name', 'Unknown Show'),
+                'description': show.get('description', ''),
+                'publisher': show.get('publisher', ''),
             }
             shows.append(simplified_show)
         
-        url = data['next']
+        url = data.get('next')
 
+    print(f"Fetched {len(shows)} shows")
     return shows
 
 def get_recently_played_tracks(access_token):

@@ -1,17 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <title>User's Saved Shows</title>
+    <meta charset="utf-8">
+    <title>Saved Shows</title>
 </head>
 <body>
-    <h1>User's Saved Shows</h1>
-    <ul>
+    <h1>Saved Shows</h1>
+    {% if shows %}
+        <ul>
         {% for show in shows %}
             <li>
-                <strong>{{ show.show.name }}</strong><br>
-                <em>Description:</em> {{ show.show.description }}
+                <strong>{{ show.name }}</strong><br>
+                Description: {{ show.description }}<br>
+                Publisher: {{ show.publisher }}
             </li>
         {% endfor %}
-    </ul>
+        </ul>
+    {% else %}
+        <p>No saved shows found.</p>
+    {% endif %}
 </body>
 </html>
