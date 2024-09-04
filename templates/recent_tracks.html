@@ -22,9 +22,9 @@
     <ul>
         {% for track in recent_tracks %}
         <li>
-            <strong>{{ track['track']['name'] }}</strong><br>
-            <em>Artist:</em> {{ track['track']['artists'][0]['name'] }}<br>
-            <em>Played at:</em> {{ track['played_at'] }}<br>
+            <strong>{{ track['name'] }}</strong><br>
+            <em>Artist:</em> {{ track['artists'][0]['name'] }}<br>
+            <em>Album:</em> {{ track['album']['name'] }}<br>
         </li>
         {% endfor %}
     </ul>
