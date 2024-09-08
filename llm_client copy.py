@@ -1,7 +1,7 @@
 from openai import OpenAI, OpenAIError
 import os
 from dotenv import load_dotenv
-from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, search_artist, get_artist_info, search_item
+from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, search_artist, get_artist_info, search_item, get_artist_id
 import uuid
 
 class LLMClient:
@@ -16,47 +16,25 @@ class LLMClient:
     def generate_session_id(self):
         return str(uuid.uuid4())
     
-
-    # # General information fetcher from GPT-4
-    # def fetch_general_info(self, entity_type, entity_name):
-    #     prompt = f"Provide general information about the {entity_type} '{entity_name}'."
+    # General information fetcher from GPT-4
+    def fetch_general_info(self, entity_type, entity_name):
+        prompt = f"Provide general information about the {entity_type} '{entity_name}'."
         
-    #     try:
-    #         response = self.client.chat.completions.create(
-    #             model="gpt-4",
-    #             messages=[{"role": "user", "content": prompt}],
-    #             max_tokens=200
-    #         )
-    #         return response.choices[0].message.content.strip()
-    #     except OpenAIError as e:
-    #         print(f"Error fetching general info: {e}")
-    #         return None
-        
-    # def extract_time_range(self, query):
-    #     """
-    #     This function takes the user query and returns Spotify's time range classification
-    #     (short_term, medium_term, long_term) based on natural language input.
-    #     """
-
-    #     query = query.lower()
-
-    #     # Classify "short term" based on inputs
-    #     if any(term in query for term in ["1 week", "last week", "7 days", "past few days", "month", "1 month"]):
-    #         return "short_term"
-        
-    #     # Classify "medium term" based on inputs
-    #     elif any(term in query for term in ["last 6 months", "6 months", "half a year", "recent months"]):
-    #         return "medium_term"
-        
-    #     # Classify "long term" based on inputs
-    #     elif any(term in query for term in ["last year", "past year", "years", "all time", "long term", "entire history"]):
-    #         return "long_term"
-        
-    #     # Default to "medium_term" if no specific time period is mentioned
-    #     else:
-    #         return "medium_term"
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=200
+            )
+            return response.choices[0].message.content.strip()
+        except OpenAIError as e:
+            print(f"Error fetching general info: {e}")
+            return None
     
     def process_query(self, query, spotify_data, access_token, session_id):
+        """
+        This method handles the parsing of user input and processes different query types.
+        """
         query_type = self.classify_query(query)
 
         if session_id not in self.memory:
@@ -66,8 +44,10 @@ class LLMClient:
         self.memory[session_id]["history"].append({"query": query})
 
         try:
-            # # Determine the time range from user query (short, medium, long)
-            # time_range = self.extract_time_range(query)
+            # Only parse user input if the query is for recommendation or playlist creation
+            parsed_info = None
+            if query_type == 'recommendation':
+                parsed_info = self.parse_user_input(query)
 
             if query_type == 'top_artists':
                 detailed_prompt = (
@@ -177,6 +157,28 @@ class LLMClient:
                     if general_info:
                         detailed_prompt += f"\nBut here is some general information:\n{general_info}"
 
+            # Handle recommendation query
+            elif parsed_info and query_type == 'recommendation':
+                artist_name = parsed_info.get("artist")
+                if artist_name:
+                    artist_data = search_item(artist_name, search_type="artist", access_token=access_token)
+                    if artist_data:
+                        artist_id = artist_data['id']
+                        # Fetch recommendations based on artist_id
+                        spotify_client = SpotifyClient(access_token)
+                        recommendations = spotify_client.get_recommendations(artist_id=artist_id)
+
+                        if recommendations:
+                            # Save recommendations in memory for potential playlist creation
+                            self.memory[session_id]["recommendations"] = recommendations
+                            return recommendations, "Would you like me to create a playlist with these recommendations?"
+                        else:
+                            return f"No recommendations found for artist '{artist_name}'."
+                    else:
+                        return f"Could not find any information on artist '{artist_name}'."
+                else:
+                    return "No artist found in the parsed information."
+
             else:
                 detailed_prompt = f"Sorry, I couldn't classify your query '{query}'. Could you clarify?"
 
@@ -234,6 +236,8 @@ class LLMClient:
             {"role": "assistant", "content": "saved_shows"},
             {"role": "user", "content": "List my saved shows."},
             {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "Recommend me some songs by Taylor Swift for a workout."},  # Example recommendation query
+            {"role": "assistant", "content": "recommendation"},
             {"role": "user", "content": query}
         ]
         
@@ -255,22 +259,122 @@ class LLMClient:
 
     # Parse user input to identify artist, genre, or mood
     def parse_user_input(self, query):
+        """
+        Parse user input to extract relevant information such as artist names, genres, or tunable attributes 
+        (e.g., danceability, energy, limit, etc.).
+        """
         messages = [
-            {"role": "system", "content": "You are a music assistant. Analyze the user's query and extract relevant information such as artist names, genres, or mood-related traits."},
+            {"role": "system", "content": "You are a music assistant. Analyze the user's query and extract relevant information such as artist names, genres, tunable attributes like danceability, energy, and the number of songs to recommend."},
             {"role": "user", "content": query}
         ]
+
         try:
+            # Call GPT-4 to extract the relevant information
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=messages,
-                max_tokens=100
+                max_tokens=150
             )
             extracted_info = response.choices[0].message.content.strip()
+
+            # Print or log the extracted info for debugging
             print(f"Extracted Info: {extracted_info}")
-            return extracted_info
+
+            # Initialize parsed_info structure with defaults
+            parsed_info = {
+                "artist": None,
+                "genre": None,
+                "limit": 10,  # Default limit if not specified
+                "min_danceability": None,
+                "max_danceability": None,
+                "target_danceability": None,
+                "min_energy": None,
+                "max_energy": None,
+                "target_energy": None
+            }
+
+            # Extract artist, genre, limit, and other attributes
+            parsed_info["artist"] = self.extract_artist_from_response(extracted_info)
+            parsed_info["genre"] = self.extract_genre_from_response(extracted_info)
+            parsed_info["limit"] = self.extract_limit_from_response(extracted_info) or 10  # Default to 10 if no limit is provided
+
+            # Map the mood or activity to energy and danceability
+            mood = self.extract_mood_from_gpt_response(extracted_info)
+            tunable_attributes = self.map_mood_to_attributes(mood)
+            parsed_info.update(tunable_attributes)
+
+            return parsed_info
+
         except OpenAIError as e:
-            print(f"Error parsing user input with LLM: {e}")
-            return "Error extracting information."
+            print(f"Error parsing user input with GPT: {e}")
+            return {
+                "artist": None,
+                "genre": None,
+                "limit": 10,
+                "min_danceability": None,
+                "max_danceability": None,
+                "target_danceability": None,
+                "min_energy": None,
+                "max_energy": None,
+                "target_energy": None
+            }
+        
+    def extract_limit_from_response(self, extracted_info):
+        """
+        Extract the limit (number of songs) from GPT-4's response.
+        """
+        # Check if GPT mentions a specific limit for the number of songs
+        if "limit" in extracted_info.lower():
+            try:
+                # Extract number (e.g., "limit: 15 tracks")
+                limit = int(re.search(r'\d+', extracted_info).group())
+                return limit
+            except (ValueError, AttributeError):
+                return None
+        return None
+    
+    def extract_artist_from_response(self, extracted_info):
+        """
+        Extract artist name from 'extracted_info' and use the Spotify API to get the artist ID.
+        """
+        lines = extracted_info.splitlines()
+        artist_name = None
+
+        # Look for the 'artist:' tag in extracted_info
+        for line in lines:
+            if line.lower().startswith("artist:"):
+                artist_name = line.split("artist:")[1].strip()
+                break
+
+        if artist_name:
+            # Use the search_item function from helpers.py to get the artist ID
+            artist_data = search_item(artist_name, search_type="artist", access_token=self.access_token)
+
+            if artist_data:
+                return artist_data['id']  # Return the artist ID
+            else:
+                print(f"Artist '{artist_name}' not found.")
+                return None
+        return None
+    
+    def extract_genre_from_response(self, extracted_info):
+        """
+        Extract genre from GPT-4's response.
+        This can be improved based on how GPT-4 returns genres in the response.
+        """
+        # You can create a list of common genres and check if any of them are mentioned in the extracted info.
+        possible_genres = [
+            "pop", "rock", "hip hop", "country", "jazz", "classical", "electronic", 
+            "indie", "reggae", "blues", "metal", "rap", "folk", "dance", "punk"
+        ]
+
+        # Check if any of the common genres appear in the GPT response
+        for genre in possible_genres:
+            if genre.lower() in extracted_info.lower():
+                return genre
+
+        # Return None if no genre is detected
+        return None
     
 class SpotifyClient:
     def __init__(self, access_token):
@@ -296,3 +400,38 @@ class SpotifyClient:
     def search_for_artist(self, artist_name):
         # Call the imported search_artist function from helpers
         return search_artist(artist_name, self.access_token)
+    
+    def get_recommendations(self, artist_id=None, seed_genres=None, min_danceability=None, max_danceability=None, min_energy=None, max_energy=None, target_danceability=None, target_energy=None):
+        """
+        Fetch recommendations from the Spotify API based on artist ID, genres, and tunable parameters.
+        """
+        endpoint = "https://api.spotify.com/v1/recommendations"
+        params = {
+            "limit": 10,  # Example limit
+            "seed_artists": artist_id if artist_id else None,
+            "seed_genres": seed_genres if seed_genres else None,
+            "min_danceability": min_danceability,
+            "max_danceability": max_danceability,
+            "target_danceability": target_danceability,
+            "min_energy": min_energy,
+            "max_energy": max_energy,
+            "target_energy": target_energy
+        }
+        
+        # Remove keys with None values to avoid sending them in the request
+        params = {k: v for k, v in params.items() if v is not None}
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}"
+        }
+
+        # Make the request to Spotify's API
+        response = requests.get(endpoint, headers=headers, params=params)
+
+        if response.status_code == 200:
+            recommendations = response.json()
+            return recommendations['tracks']  # Returns the recommended tracks
+        else:
+            return f"Error fetching recommendations: {response.status_code}"
+     
+    

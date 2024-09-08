@@ -325,3 +325,18 @@ def search_item(query, search_type, access_token):
 
     else:
         return None
+    
+def get_artist_id(spotify_client, artist_name):
+    """
+    Function to search for an artist by name and return the Spotify artist ID.
+    """
+    # Use search_item function to search for the artist by name
+    search_results = spotify_client.search_item(query=artist_name, search_type="artist")
+    
+    # Extract the artist ID from the search results
+    if search_results and search_results['artists']['items']:
+        artist_id = search_results['artists']['items'][0]['id']  # Get the first artist's ID
+        return artist_id
+    else:
+        print(f"Artist '{artist_name}' not found.")
+        return None
