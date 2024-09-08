@@ -17,20 +17,44 @@ class LLMClient:
         return str(uuid.uuid4())
     
 
-    # General information fetcher from GPT-4
-    def fetch_general_info(self, entity_type, entity_name):
-        prompt = f"Provide general information about the {entity_type} '{entity_name}'."
+    # # General information fetcher from GPT-4
+    # def fetch_general_info(self, entity_type, entity_name):
+    #     prompt = f"Provide general information about the {entity_type} '{entity_name}'."
         
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=200
-            )
-            return response.choices[0].message.content.strip()
-        except OpenAIError as e:
-            print(f"Error fetching general info: {e}")
-            return None
+    #     try:
+    #         response = self.client.chat.completions.create(
+    #             model="gpt-4",
+    #             messages=[{"role": "user", "content": prompt}],
+    #             max_tokens=200
+    #         )
+    #         return response.choices[0].message.content.strip()
+    #     except OpenAIError as e:
+    #         print(f"Error fetching general info: {e}")
+    #         return None
+        
+    # def extract_time_range(self, query):
+    #     """
+    #     This function takes the user query and returns Spotify's time range classification
+    #     (short_term, medium_term, long_term) based on natural language input.
+    #     """
+
+    #     query = query.lower()
+
+    #     # Classify "short term" based on inputs
+    #     if any(term in query for term in ["1 week", "last week", "7 days", "past few days", "month", "1 month"]):
+    #         return "short_term"
+        
+    #     # Classify "medium term" based on inputs
+    #     elif any(term in query for term in ["last 6 months", "6 months", "half a year", "recent months"]):
+    #         return "medium_term"
+        
+    #     # Classify "long term" based on inputs
+    #     elif any(term in query for term in ["last year", "past year", "years", "all time", "long term", "entire history"]):
+    #         return "long_term"
+        
+    #     # Default to "medium_term" if no specific time period is mentioned
+    #     else:
+    #         return "medium_term"
     
     def process_query(self, query, spotify_data, access_token, session_id):
         query_type = self.classify_query(query)
@@ -42,6 +66,9 @@ class LLMClient:
         self.memory[session_id]["history"].append({"query": query})
 
         try:
+            # # Determine the time range from user query (short, medium, long)
+            # time_range = self.extract_time_range(query)
+
             if query_type == 'top_artists':
                 detailed_prompt = (
                     "The user wants to know their top artists. Provide a list of the top artists based on the provided Spotify data.\n"
