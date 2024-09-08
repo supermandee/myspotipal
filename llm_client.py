@@ -178,6 +178,7 @@ class LLMClient:
                         detailed_prompt += f"\nBut here is some general information:\n{general_info}"
 
             else:
+                data = spotify_data
                 detailed_prompt = f"Sorry, I couldn't classify your query '{query}'. Could you clarify?"
 
             # Create the messages for the OpenAI API call
@@ -186,12 +187,16 @@ class LLMClient:
                 {"role": "user", "content": detailed_prompt}
             ]
 
+            print("Messages Sent to OpenAI API:", messages)  # Log messages
+
             # Send the prompt to OpenAI API
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=messages,
                 max_tokens=400  # Increase max tokens to ensure a complete response
             )
+
+            print("Response from OpenAI API:", response)  # Log response
 
             response_text = response.choices[0].message.content.strip()
 
