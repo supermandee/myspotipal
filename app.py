@@ -33,9 +33,14 @@ REDIRECT_URI = 'http://localhost:5001/callback'
 # Initialize the LLM client
 llm_client = LLMClient()
 
+
 def refresh_token():
     token_url = 'https://accounts.spotify.com/api/token'
-    refresh_token = session.get('refresh_token')
+    refresh_token = session.get('refresh_token') or os.getenv('SPOTIFY_REFRESH_TOKEN')
+    if not refresh_token:
+        print("No refresh token available")
+        return None
+
     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
     client_credentials_b64 = base64.b64encode(client_credentials.encode()).decode()
 
@@ -60,6 +65,7 @@ def refresh_token():
     session['access_token'] = token_info['access_token']
     if 'refresh_token' in token_info:
         session['refresh_token'] = token_info['refresh_token']
+        update_env_variable('REFRESH_TOKEN', token_info['refresh_token'])
     return token_info['access_token']
 
 def get_access_token():
@@ -85,6 +91,33 @@ def ensure_valid_access_token():
             return None  # If refresh fails, return None
 
     return access_token
+
+def update_env_variable(key, value):
+    env_file = '.env'
+    # Read current .env file contents
+    lines = []
+    updated = False
+    with open(env_file, 'r') as file:
+        lines = file.readlines()
+
+    # Update the line if it exists or add a new one
+    with open(env_file, 'w') as file:
+        for line in lines:
+            if line.startswith(f'{key}='):
+                file.write(f'{key}={value}\n')
+                updated = True
+            else:
+                file.write(line)
+        if not updated:
+            file.write(f'{key}={value}\n')
+
+@app.route('/get_refresh_token')
+def get_refresh_token():
+    refresh_token = session.get('refresh_token')
+    if refresh_token:
+        return f"Refresh Token: {refresh_token}", 200
+    else:
+        return "No refresh token found", 400
 
 @app.route('/')
 def index():
@@ -129,6 +162,12 @@ def callback():
     }
     user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
     session['user_profile'] = user_profile  # Store user profile in session
+
+
+    # Save refresh token to .env
+    refresh_token = token_info.get('refresh_token')
+    if refresh_token:
+        update_env_variable('REFRESH_TOKEN', refresh_token)
 
     # Gather and cache Spotify data
     spotify_data = gather_spotify_data(session['access_token'], cache)
