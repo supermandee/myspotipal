@@ -16,6 +16,71 @@ class LLMClient:
     def generate_session_id(self):
         return str(uuid.uuid4())
     
+    def classify_query(self, query):
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant. Classify the following query into one of the categories: top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks, artist_info, or unknown. Respond with only the category."},
+            {"role": "user", "content": "What are my favorite artists?"},
+            {"role": "assistant", "content": "top_artists"},
+            {"role": "user", "content": "Show me my top songs."},
+            {"role": "assistant", "content": "top_tracks"},
+            {"role": "user", "content": "Who do I follow?"},
+            {"role": "assistant", "content": "followed_artists"},
+            {"role": "user", "content": "List my playlists."},
+            {"role": "assistant", "content": "playlists"},
+            {"role": "user", "content": "What podcasts do I have saved?"},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "Tell me about Modern Sophia."},
+            {"role": "assistant", "content": "artist_info"},
+            {"role": "user", "content": "Tell me about album."},
+            {"role": "assistant", "content": "album_info"},
+            {"role": "user", "content": "Search playlist."},
+            {"role": "assistant", "content": "playlist_info"},
+            {"role": "user", "content": "What have I listened to recently?"},
+            {"role": "assistant", "content": "recent_tracks"},
+            {"role": "user", "content": "Recommend me some podcasts."},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "What audiobooks do I have saved?"},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "List my saved shows."},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "Recommend me some songs by Taylor Swift for a workout."},  # Example recommendation query
+            {"role": "assistant", "content": "recommendation"},
+            {"role": "user", "content": query}
+        ]
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=10
+            )
+            classification = response.choices[0].message.content.strip()
+            print(f"Classified Query: {classification}")  # Log the classification
+            return classification
+        except OpenAIError as e:
+            print(f"Error classifying query with LLM: {e}")
+            return "unknown"
+        except Exception as e:
+            print(f"Unexpected error in classify_query: {e}")
+            return "unknown"
+        
+    def classify_show(show):
+        """
+        Classify the type of show based on its metadata.
+        """
+        description = show.get("description", "").lower()
+        publisher = show.get("publisher", "").lower()
+
+        audiobook_keywords = ["audiobook", "narrator", "narrated by", "read by", "author"]
+        is_audiobook = any(keyword in description for keyword in audiobook_keywords)
+
+        print(f"Show: {show.get('name', 'Unknown Show')}, Description: {description}, Publisher: {publisher}, Is Audiobook: {is_audiobook}")
+
+        if is_audiobook:
+            return "audiobook"
+        else:
+            return "podcast"
+    
 
     # # General information fetcher from GPT-4
     # def fetch_general_info(self, entity_type, entity_name):
@@ -31,30 +96,7 @@ class LLMClient:
     #     except OpenAIError as e:
     #         print(f"Error fetching general info: {e}")
     #         return None
-        
-    # def extract_time_range(self, query):
-    #     """
-    #     This function takes the user query and returns Spotify's time range classification
-    #     (short_term, medium_term, long_term) based on natural language input.
-    #     """
 
-    #     query = query.lower()
-
-    #     # Classify "short term" based on inputs
-    #     if any(term in query for term in ["1 week", "last week", "7 days", "past few days", "month", "1 month"]):
-    #         return "short_term"
-        
-    #     # Classify "medium term" based on inputs
-    #     elif any(term in query for term in ["last 6 months", "6 months", "half a year", "recent months"]):
-    #         return "medium_term"
-        
-    #     # Classify "long term" based on inputs
-    #     elif any(term in query for term in ["last year", "past year", "years", "all time", "long term", "entire history"]):
-    #         return "long_term"
-        
-    #     # Default to "medium_term" if no specific time period is mentioned
-    #     else:
-    #         return "medium_term"
     
     def process_query(self, query, spotify_data, access_token, session_id):
         query_type = self.classify_query(query)
@@ -66,10 +108,13 @@ class LLMClient:
         self.memory[session_id]["history"].append({"query": query})
 
         try:
-            # # Determine the time range from user query (short, medium, long)
-            # time_range = self.extract_time_range(query)
-
-            if query_type == 'top_artists':
+            # If the query type is 'recommend', use the parse_user_input function
+            if query_type == 'recommend':
+                extracted_info = self.parse_user_input(query)
+                detailed_prompt = (
+                    f"The user is asking for a recommendation. Based on the extracted information: {extracted_info}, generate appropriate recommendations."
+                )
+            elif query_type == 'top_artists':
                 detailed_prompt = (
                     "The user wants to know their top artists. Provide a list of the top artists based on the provided Spotify data.\n"
                     f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
@@ -119,7 +164,7 @@ class LLMClient:
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
             # Handle each query type individually
-            if query_type == 'artist_info':
+            elif query_type == 'artist_info':
                 artist_name = query.split("about")[-1].strip()
                 artist_info = search_artist(artist_name, access_token)
                 general_info = self.fetch_general_info("artist", artist_name)  # Fetch general info
@@ -212,51 +257,7 @@ class LLMClient:
             print(f"Unexpected error in process_query: {e}")
             return "An unexpected error occurred."
         
-    def classify_query(self, query):
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant. Classify the following query into one of the categories: top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks, artist_info, or unknown. Respond with only the category."},
-            {"role": "user", "content": "What are my favorite artists?"},
-            {"role": "assistant", "content": "top_artists"},
-            {"role": "user", "content": "Show me my top songs."},
-            {"role": "assistant", "content": "top_tracks"},
-            {"role": "user", "content": "Who do I follow?"},
-            {"role": "assistant", "content": "followed_artists"},
-            {"role": "user", "content": "List my playlists."},
-            {"role": "assistant", "content": "playlists"},
-            {"role": "user", "content": "What podcasts do I have saved?"},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": "Tell me about Modern Sophia."},
-            {"role": "assistant", "content": "artist_info"},
-            {"role": "user", "content": "Tell me about album."},
-            {"role": "assistant", "content": "album_info"},
-            {"role": "user", "content": "Search playlist."},
-            {"role": "assistant", "content": "playlist_info"},
-            {"role": "user", "content": "What have I listened to recently?"},
-            {"role": "assistant", "content": "recent_tracks"},
-            {"role": "user", "content": "Recommend me some podcasts."},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": "What audiobooks do I have saved?"},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": "List my saved shows."},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": query}
-        ]
-        
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                max_tokens=10
-            )
-            classification = response.choices[0].message.content.strip()
-            print(f"Classified Query: {classification}")  # Log the classification
-            return classification
-        except OpenAIError as e:
-            print(f"Error classifying query with LLM: {e}")
-            return "unknown"
-        except Exception as e:
-            print(f"Unexpected error in classify_query: {e}")
-            return "unknown"
+
 
     # Parse user input to identify artist, genre, or mood
     def parse_user_input(self, query):
@@ -301,3 +302,39 @@ class SpotifyClient:
     def search_for_artist(self, artist_name):
         # Call the imported search_artist function from helpers
         return search_artist(artist_name, self.access_token)
+    
+    def get_recommendations(self, artist_id=None, seed_genres=None, min_danceability=None, max_danceability=None, min_energy=None, max_energy=None, target_danceability=None, target_energy=None):
+        """
+        Fetch recommendations from the Spotify API based on artist ID, genres, and tunable parameters.
+        """
+        endpoint = "https://api.spotify.com/v1/recommendations"
+        params = {
+            "limit": 10,  # Example limit
+            "seed_artists": artist_id if artist_id else None,
+            "seed_genres": seed_genres if seed_genres else None,
+            "min_danceability": min_danceability,
+            "max_danceability": max_danceability,
+            "target_danceability": target_danceability,
+            "min_energy": min_energy,
+            "max_energy": max_energy,
+            "target_energy": target_energy
+        }
+        
+        # Remove keys with None values to avoid sending them in the request
+        params = {k: v for k, v in params.items() if v is not None}
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}"
+        }
+
+        # Make the request to Spotify's API
+        response = requests.get(endpoint, headers=headers, params=params)
+
+        if response.status_code == 200:
+            recommendations = response.json()
+            return recommendations['tracks']  # Returns the recommended tracks
+        else:
+            return f"Error fetching recommendations: {response.status_code}"
+     
+    
+
