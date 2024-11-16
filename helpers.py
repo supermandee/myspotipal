@@ -209,6 +209,7 @@ def search_artist(artist_name, access_token):
     if data['artists']['items']:
         artist = data['artists']['items'][0]
         return {
+            'id': artist['id'],
             'name': artist['name'],
             'genres': artist['genres'],
             'followers': artist['followers']['total'],
@@ -241,3 +242,101 @@ def get_artist_info(self, artist_id, access_token):
         'popularity': artist['popularity'],
         'url': artist['external_urls']['spotify']
     }
+
+def search_item(query, search_type, access_token):
+    """
+    Search for a specific item type on Spotify.
+
+    :param query: The search string (e.g., artist name, album name, etc.)
+    :param search_type: The type of item to search for (e.g., 'artist', 'album', 'track', etc.)
+    :param access_token: The Spotify access token
+    :return: Search results with specific data based on type
+    """
+    url = 'https://api.spotify.com/v1/search'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    params = {
+        'q': query,
+        'type': search_type,
+        'limit': 1  # Adjust as needed
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code != 200:
+        print(f"Error searching for {search_type}:")
+        print("Request URL:", url)
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        return None
+
+    data = response.json()
+
+    # Handle search for 'artist' type
+    if search_type == 'artist' and data['artists']['items']:
+        artist = data['artists']['items'][0]
+        return {
+            'id': artist['id'],
+            'name': artist['name'],
+            'genres': artist['genres'],
+            'followers': artist['followers']['total'],
+            'popularity': artist['popularity'],
+            'url': artist['external_urls']['spotify']
+        }
+    
+    # Handle search for 'album' type
+    elif search_type == 'album' and data['albums']['items']:
+        album = data['albums']['items'][0]
+        return {
+            'id': album['id'],
+            'name': album['name'],
+            'album_type': album['album_type'],
+            'artists': [artist['name'] for artist in album['artists']],  # List of artist names
+            'release_date': album['release_date'],
+            'total_tracks': album['total_tracks'],
+            'url': album['external_urls']['spotify'],
+        }
+    
+    # Handle search for 'playlist' type
+    if search_type == 'playlist' and data['playlists']['items']:
+        playlist = data['playlists']['items'][0]
+        return {
+            'id': playlist['id'],
+            'name': playlist['name'],
+            'description': playlist.get('description'),
+            'owner': playlist['owner'].get('display_name', 'Unknown'),
+            'collaborative': playlist['collaborative'],
+            'public': playlist.get('public', 'Unknown'),
+            'url': playlist['external_urls']['spotify'],
+            'followers': playlist['followers']['total'],
+            'total_tracks': playlist['tracks']['total']
+        }
+
+    # Handle other search types like 'track', 'playlist', etc.
+    elif search_type in data and data[search_type]['items']:
+        item = data[search_type]['items'][0]
+        return {
+            'id': item.get('id'),
+            'name': item.get('name'),
+            'url': item['external_urls'].get('spotify'),
+            'additional_info': item  # This holds all other information about the item
+        }
+
+    else:
+        return None
+    
+def get_artist_id(spotify_client, artist_name):
+    """
+    Function to search for an artist by name and return the Spotify artist ID.
+    """
+    # Use search_item function to search for the artist by name
+    search_results = spotify_client.search_item(query=artist_name, search_type="artist")
+    
+    # Extract the artist ID from the search results
+    if search_results and search_results['artists']['items']:
+        artist_id = search_results['artists']['items'][0]['id']  # Get the first artist's ID
+        return artist_id
+    else:
+        print(f"Artist '{artist_name}' not found.")
+        return None
