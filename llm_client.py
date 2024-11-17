@@ -82,21 +82,22 @@ class LLMClient:
             return "podcast"
     
 
-    # # General information fetcher from GPT-4
-    # def fetch_general_info(self, entity_type, entity_name):
-    #     prompt = f"Provide general information about the {entity_type} '{entity_name}'."
+    def fetch_general_info(self, entity_type, entity_name, query):  # Add query parameter
+        messages = [
+            {"role": "system", "content": "You are a music knowledge assistant. Answer questions directly. If the question is about streaming, popularity, genres, or current stats, use the Spotify data provided. For historical or biographical questions, provide relevant facts only."},
+            {"role": "user", "content": f"Question: {query}\n\nProvide a direct answer focusing only on what was asked."}
+        ]
         
-    #     try:
-    #         response = self.client.chat.completions.create(
-    #             model="gpt-4",
-    #             messages=[{"role": "user", "content": prompt}],
-    #             max_tokens=200
-    #         )
-    #         return response.choices[0].message.content.strip()
-    #     except OpenAIError as e:
-    #         print(f"Error fetching general info: {e}")
-    #         return None
-
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=200
+            )
+            return response.choices[0].message.content.strip()
+        except OpenAIError as e:
+            print(f"Error fetching general info: {e}")
+            return None
     
     def process_query(self, query, spotify_data, access_token, session_id):
         query_type = self.classify_query(query)
@@ -165,23 +166,26 @@ class LLMClient:
                 )
             # Handle each query type individually
             elif query_type == 'artist_info':
-                artist_name = query.split("about")[-1].strip()
+                # Extract artist name from query
+                artist_name = query.split()[-1]  # Simple extraction for now
                 artist_info = search_artist(artist_name, access_token)
-                general_info = self.fetch_general_info("artist", artist_name)  # Fetch general info
-
-                if artist_info:
-                    detailed_prompt = (
-                        f"Here is detailed information about {artist_name} from Spotify:\n"
-                        f"Genres: {', '.join(artist_info['genres'])}\n"
-                        f"Followers: {artist_info['followers']}\n"
-                        f"Popularity: {artist_info['popularity']}\n"
-                        f"URL: {artist_info['url']}\n"
-                        f"\nGeneral Information: {general_info}"
-                    )
-                else:
-                    detailed_prompt = f"Sorry, I couldn't find any information about the artist '{artist_name}' on Spotify.\n"
-                    if general_info:
-                        detailed_prompt += f"\nBut here is some general information:\n{general_info}"
+                
+                # Pass the full query to get contextual response
+                response = ""
+                
+                # If query is about stats/genres/followers, include Spotify data
+                if any(word in query.lower() for word in ['followers', 'popular', 'genre', 'streams']):
+                    response += f"Spotify Statistics for {artist_name}:\n"
+                    response += f"Genres: {', '.join(artist_info['genres'])}\n"
+                    response += f"Followers: {artist_info['followers']}\n"
+                    response += f"Popularity: {artist_info['popularity']}/100\n"
+                
+                # Get general info with the specific question
+                general_info = self.fetch_general_info("artist", artist_name, query)
+                if general_info:
+                    response += general_info
+                    
+                return response
 
             elif query_type == 'album_info':
                 album_name = query.split("album")[-1].strip()
