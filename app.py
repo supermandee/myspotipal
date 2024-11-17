@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, url_for, session, render_template, jsonify
+from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
 import requests
 from urllib.parse import urlencode
 import os
@@ -274,35 +274,31 @@ def chat():
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
+    access_token = ensure_valid_access_token()
     if not access_token:
-        print("Access token is invalid or expired, redirecting to login")
-        return jsonify({"error": "Access token is invalid or expired, redirecting to login"}), 401
+        return jsonify({"error": "Access token is invalid or expired"}), 401
 
-    spotify_data = cache.get('spotify_data')  # Get cached data for chatbot
+    spotify_data = cache.get('spotify_data')
     if not spotify_data:
-        print("No Spotify data cached, gathering new data")
         spotify_data = gather_spotify_data(access_token, cache)
-        if not spotify_data:  # If data is still not available
-            return jsonify({"error": "No Spotify data available, please log in again"}), 401
+        if not spotify_data:
+            return jsonify({"error": "No Spotify data available"}), 401
 
     query = request.form.get('query')
     if not query:
-        print("No query provided")
         return jsonify({"error": "No query provided"}), 400
-    
+
     if 'session_id' not in session:
         session['session_id'] = generate_session_id()
 
     session_id = session['session_id']
 
-    response = llm_client.process_query(query, spotify_data, access_token, session_id)
-    if response:
-        return jsonify({"answer": response})
-    else:
-        print("Failed to get a response from the OpenAI API")
-        return jsonify({"error": "Failed to get a response from the OpenAI API"}), 500
+    def generate():
+        response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
+        for chunk in response_iterator:
+            yield chunk
 
+    return Response(generate(), mimetype='text/plain')
     
 @app.route('/cached-data')
 def cached_data():

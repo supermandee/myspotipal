@@ -82,7 +82,7 @@ class LLMClient:
             return "podcast"
     
 
-    def fetch_general_info(self, entity_type, entity_name, query):  # Add query parameter
+    def fetch_general_info(self, entity_type, entity_name, query):  
         messages = [
             {"role": "system", "content": "You are a music knowledge assistant. Answer questions directly. If the question is about streaming, popularity, genres, or current stats, use the Spotify data provided. For historical or biographical questions, provide relevant facts only."},
             {"role": "user", "content": f"Question: {query}\n\nProvide a direct answer focusing only on what was asked."}
@@ -98,183 +98,177 @@ class LLMClient:
         except OpenAIError as e:
             print(f"Error fetching general info: {e}")
             return None
-    
-    def process_query(self, query, spotify_data, access_token, session_id):
-        query_type = self.classify_query(query)
-
-        if session_id not in self.memory:
-            self.memory[session_id] = {"history": []}
-
-        # Append new query to session history
-        self.memory[session_id]["history"].append({"query": query})
-
+        
+    # Update the stream_response method in your LLMClient class
+    def stream_response(self, messages, max_tokens=1000):
+        """
+        Stream responses from OpenAI API using the provided messages.
+        """
         try:
-            # If the query type is 'recommend', use the parse_user_input function
-            if query_type == 'recommend':
-                extracted_info = self.parse_user_input(query)
-                detailed_prompt = (
-                    f"The user is asking for a recommendation. Based on the extracted information: {extracted_info}, generate appropriate recommendations."
-                )
-            elif query_type == 'top_artists':
-                detailed_prompt = (
-                    "The user wants to know their top artists. Provide a list of the top artists based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
-                )
-            elif query_type == 'top_tracks':
-                detailed_prompt = (
-                    "The user wants to know their top tracks. Provide a list of the top tracks based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
-                )
-            elif query_type == 'followed_artists':
-                data = get_followed_artists(access_token)
-                detailed_prompt = (
-                    "The user wants to know the artists they follow. Provide a list of followed artists based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
-                )
-            elif query_type == 'playlists':
-                data = get_user_playlists(access_token)
-                detailed_prompt = (
-                    "The user wants to know their playlists. Provide a list of playlists based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
-                )
-            elif query_type == 'saved_shows':
-                data = get_saved_shows(access_token)
-                podcasts, audiobooks = [], []
-
-                if 'items' in data:
-                    for item in data['items']:
-                        show = item.get('show', {})
-                        show_type = self.classify_show(show)
-                        if show_type == "podcast":
-                            podcasts.append(show.get('name', 'Unknown Show'))
-                        elif show_type == "audiobook":
-                            audiobooks.append(show.get('name', 'Unknown Show'))
-
-                if not podcasts and not audiobooks:
-                    detailed_prompt = (
-                        "Based on your Spotify data, it appears that you haven't saved any podcasts or audiobooks yet. To save a show, just click on the 'Heart' icon next to the show name."
-                    )
-                else:
-                    detailed_prompt = (
-                        f"Podcasts:\n{podcasts}\nAudiobooks:\n{audiobooks}\nUser Query: {query}\nResponse:"
-                    )
-            elif query_type == 'recent_tracks':
-                data = get_recently_played_tracks(access_token)
-                detailed_prompt = (
-                    "The user wants to know their recently played tracks. Provide a list of recently played tracks based on the provided Spotify data.\n"
-                    f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
-                )
-
-            elif query_type == 'artist_info':
-                # First get artist name
-                messages = [
-                    {"role": "system", "content": "You are a helper that identifies artist names in questions. Return ONLY the artist name, nothing else."},
-                    {"role": "user", "content": query}
-                ]
-
-                artist_response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=messages,
-                    max_tokens=50
-                )
-                artist_name = artist_response.choices[0].message.content.strip()
-                print(f"Identified artist: {artist_name}")
-                
-                artist_info = search_artist(artist_name, access_token)
-                general_info = self.fetch_general_info("artist", artist_name, query)
-                
-                if artist_info:
-                    # Let GPT format the response using both Spotify data and general info
-                    messages = [
-                        {"role": "system", "content": "You are a helpful Spotify assistant. Answer the user's question naturally. If the question is about stats (followers/genres/popularity), use the Spotify data. For other questions about the artist (age, background, origin, etc.), use the general information provided."},
-                        {"role": "user", "content": f"""
-            Question: {query}
-            Spotify data: Followers: {artist_info['followers']}, Genres: {', '.join(artist_info['genres'])}, Popularity: {artist_info['popularity']}/100
-            General information: {general_info}
-            """}
-                    ]
-
-                    response = self.client.chat.completions.create(
-                        model="gpt-4",
-                        messages=messages,
-                        max_tokens=150
-                    )
-                    return response.choices[0].message.content.strip()
-            elif query_type == 'album_info':
-                album_name = query.split("album")[-1].strip()
-                album_info = search_item(album_name, 'album', access_token)
-                general_info = self.fetch_general_info("album", album_name)  # Fetch general info
-
-                if album_info:
-                    detailed_prompt = (
-                        f"Here is detailed information about {album_name} from Spotify:\n"
-                        f"Release Date: {album_info['release_date']}\n"
-                        f"Total Tracks: {album_info['total_tracks']}\n"
-                        f"Album Type: {album_info['album_type']}\n"
-                        f"URL: {album_info['url']}\n"
-                        f"\nGeneral Information: {general_info}"
-                    )
-                else:
-                    detailed_prompt = f"Sorry, I couldn't find any information about the album '{album_name}' on Spotify.\n"
-                    if general_info:
-                        detailed_prompt += f"\nBut here is some general information:\n{general_info}"
-
-            elif query_type == 'playlist_info':
-                playlist_name = query.split("playlist")[-1].strip()
-                playlist_info = search_item(playlist_name, 'playlist', access_token)
-                general_info = self.fetch_general_info("playlist", playlist_name)  # Fetch general info
-
-                if playlist_info:
-                    detailed_prompt = (
-                        f"Here is detailed information about the playlist '{playlist_name}' from Spotify:\n"
-                        f"Description: {playlist_info['description']}\n"
-                        f"Number of Tracks: {playlist_info['total_tracks']}\n"
-                        f"Collaborative: {playlist_info['collaborative']}\n"
-                        f"Owner: {playlist_info['owner']}\n"
-                        f"URL: {playlist_info['url']}\n"
-                        f"\nGeneral Information: {general_info}"
-                    )
-                else:
-                    detailed_prompt = f"Sorry, I couldn't find any information about the playlist '{playlist_name}' on Spotify.\n"
-                    if general_info:
-                        detailed_prompt += f"\nBut here is some general information:\n{general_info}"
-
-            else:
-                data = spotify_data
-                detailed_prompt = f"Sorry, I couldn't classify your query '{query}'. Could you clarify?"
-
-            # Create the messages for the OpenAI API call
-            messages = [
-                {"role": "system", "content": "You are a personal Spotify assistant. Based on the user's query and their Spotify data, provide a helpful and accurate response."},
-                {"role": "user", "content": detailed_prompt}
-            ]
-
-            print("Messages Sent to OpenAI API:", messages)  # Log messages
-
-            # Send the prompt to OpenAI API
-            response = self.client.chat.completions.create(
+            # Use stream=True to get a streaming response
+            stream = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=messages,
-                max_tokens=400  # Increase max tokens to ensure a complete response
+                max_tokens=max_tokens,
+                stream=True
             )
 
-            print("Response from OpenAI API:", response)  # Log response
-
-            response_text = response.choices[0].message.content.strip()
-
-            # Append the response to session history
-            self.memory[session_id]["history"].append({"response": response_text})
-
-            return response_text
+            # Stream each chunk
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    yield chunk.choices[0].delta.content
 
         except OpenAIError as e:
-            print(f"Error processing query with LLM: {e}")
-            return "Sorry, I couldn't process your request at this time."
+            print(f"Error streaming response: {e}")
+            yield "Sorry, I couldn't process your request at this time."
         except Exception as e:
-            print(f"Unexpected error in process_query: {e}")
-            return "An unexpected error occurred."
-        
+            print(f"Unexpected error during streaming: {e}")
+            yield "An unexpected error occurred."
+    
+    def process_query(self, query, spotify_data, access_token, session_id):
+            query_type = self.classify_query(query)
 
+            if session_id not in self.memory:
+                self.memory[session_id] = {"history": []}
+
+            # Append new query to session history
+            self.memory[session_id]["history"].append({"query": query})
+
+            try:
+                # Prepare the detailed prompt based on query type
+                if query_type == 'recommend':
+                    extracted_info = self.parse_user_input(query)
+                    detailed_prompt = f"The user is asking for a recommendation. Based on the extracted information: {extracted_info}, generate appropriate recommendations."
+
+                elif query_type == 'top_artists':
+                    detailed_prompt = (
+                        "The user wants to know their top artists. Provide a list of the top artists based on the provided Spotify data.\n"
+                        f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    )
+
+                elif query_type == 'top_tracks':
+                    detailed_prompt = (
+                        "The user wants to know their top tracks. Provide a list of the top tracks based on the provided Spotify data.\n"
+                        f"Here is the user's Spotify data:\n{spotify_data}\nUser Query: {query}\nResponse:"
+                    )
+
+                elif query_type == 'followed_artists':
+                    data = get_followed_artists(access_token)
+                    detailed_prompt = (
+                        "The user wants to know the artists they follow. Provide a list of followed artists based on the provided Spotify data.\n"
+                        f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
+                    )
+
+                elif query_type == 'playlists':
+                    data = get_user_playlists(access_token)
+                    detailed_prompt = (
+                        "The user wants to know their playlists. Provide a list of playlists based on the provided Spotify data.\n"
+                        f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
+                    )
+
+                elif query_type == 'saved_shows':
+                    data = get_saved_shows(access_token)
+                    podcasts, audiobooks = [], []
+
+                    if 'items' in data:
+                        for item in data['items']:
+                            show = item.get('show', {})
+                            show_type = self.classify_show(show)
+                            if show_type == "podcast":
+                                podcasts.append(show.get('name', 'Unknown Show'))
+                            elif show_type == "audiobook":
+                                audiobooks.append(show.get('name', 'Unknown Show'))
+
+                    if not podcasts and not audiobooks:
+                        detailed_prompt = (
+                            "Based on your Spotify data, it appears that you haven't saved any podcasts or audiobooks yet."
+                        )
+                    else:
+                        detailed_prompt = (
+                            f"Podcasts:\n{podcasts}\nAudiobooks:\n{audiobooks}\nUser Query: {query}\nResponse:"
+                        )
+
+                elif query_type == 'recent_tracks':
+                    data = get_recently_played_tracks(access_token)
+                    detailed_prompt = (
+        "You are looking at the user's recently played tracks. By default, tell them about their 5 most recent tracks. "
+        "If they specifically ask for more tracks in their query, tell them about more tracks. "
+        "Be conversational but concise. \n"
+        f"Here is the user's Spotify data:\n{data}\nUser Query: {query}"
+    )
+
+                elif query_type == 'artist_info':
+                    # First get artist name
+                    messages = [
+                        {"role": "system", "content": "You are a helper that identifies artist names in questions. Return ONLY the artist name, nothing else."},
+                        {"role": "user", "content": query}
+                    ]
+
+                    artist_response = self.client.chat.completions.create(
+                        model="gpt-4",
+                        messages=messages,
+                        max_tokens=50
+                    )
+                    artist_name = artist_response.choices[0].message.content.strip()
+                    print(f"Identified artist: {artist_name}")
+                    
+                    artist_info = search_artist(artist_name, access_token)
+                    general_info = self.fetch_general_info("artist", artist_name, query)
+
+                    if artist_info:
+                        detailed_prompt = f"""
+    Question: {query}
+    Spotify data: Followers: {artist_info['followers']}, Genres: {', '.join(artist_info['genres'])}, Popularity: {artist_info['popularity']}/100
+    General information: {general_info}
+    """
+                    else:
+                        detailed_prompt = f"Sorry, I couldn't find information about '{artist_name}' on Spotify.\n"
+                        if general_info:
+                            detailed_prompt += f"However, here is some general information:\n{general_info}"
+
+                    # Special handling for artist info messages
+                    messages = [
+                        {"role": "system", "content": "You are a helpful Spotify assistant. Answer the user's question naturally. If the question is about stats (followers/genres/popularity), use the Spotify data. For other questions about the artist (age, background, origin, etc.), use the general information provided."},
+                        {"role": "user", "content": detailed_prompt}
+                    ]
+
+                elif query_type == 'album_info':
+                    album_name = query.split("album")[-1].strip()
+                    album_info = search_item(album_name, 'album', access_token)
+                    general_info = self.fetch_general_info("album", album_name)
+                    
+                    detailed_prompt = (
+                        f"Here is detailed information about {album_name}:\n"
+                        f"Release Date: {album_info['release_date']}\nTotal Tracks: {album_info['total_tracks']}\n"
+                        f"General Information: {general_info}"
+                    )
+
+                else:
+                    detailed_prompt = f"Sorry, I couldn't classify your query '{query}'."
+
+                #streaming code for all queries 
+                messages = [
+                    {"role": "system", "content": "You are a personal Spotify assistant."},
+                    {"role": "user", "content": detailed_prompt}
+                ]
+
+                def stream_and_save():
+                    full_response = ""
+                    for chunk in self.stream_response(messages, max_tokens=1000):
+                        full_response += chunk
+                        yield chunk
+                    
+                    # After streaming is complete, save to memory
+                    self.memory[session_id]["history"].append({"response": full_response})
+                
+                return stream_and_save()
+
+            except OpenAIError as e:
+                print(f"Error processing query with LLM: {e}")
+                return iter(["Sorry, I couldn't process your request at this time."])
+            except Exception as e:
+                print(f"Unexpected error in process_query: {e}")
+                return iter(["An unexpected error occurred."])
 
     # Parse user input to identify artist, genre, or mood
     def parse_user_input(self, query):
