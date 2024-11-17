@@ -6,6 +6,7 @@
     <title>MySpotiPal Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
+        /* Keep all your existing styles exactly as they are */
         body {
             margin: 0;
             padding: 0;
@@ -95,7 +96,12 @@
             background-color: #f44336;
             color: white;
             margin-bottom: 15px;
-            display: none; /* Hidden by default */
+            display: none;
+        }
+        /* Add new style for disabled state */
+        .input-box input:disabled, .input-box button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -112,65 +118,99 @@
         </div>
         <div class="input-box">
             <input type="text" id="user-input" placeholder="Ask me something..." onkeypress="checkEnter(event)">
-            <button onclick="sendMessage()">Send</button>
+            <button id="send-button" onclick="sendMessage()">Send</button>
         </div>
     </div>
+
     <script>
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const chatBox = document.getElementById('chat-box');
+
         function setExample(example) {
-            document.getElementById('user-input').value = example;
+            userInput.value = example;
         }
 
-        function sendMessage() {
-            const userInput = document.getElementById('user-input').value;
-            const chatBox = document.getElementById('chat-box');
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
 
-            if (userInput.trim() === '') return;
+            // Disable input and button while processing
+            userInput.disabled = true;
+            sendButton.disabled = true;
 
-            // Display the user's message
+            // Display user message
             const userMessage = document.createElement('div');
             userMessage.className = 'chat-bubble user-message';
-            userMessage.textContent = 'You: ' + userInput;
+            userMessage.textContent = message;
             chatBox.appendChild(userMessage);
 
-            // Clear the input box
-            document.getElementById('user-input').value = '';
+            // Clear input
+            userInput.value = '';
 
-            // Send the user's message to the server
-            fetch('/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: 'query=' + encodeURIComponent(userInput)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showError(data.error);
-                } else {
-                    const botMessage = document.createElement('div');
-                    botMessage.className = 'chat-bubble bot-message';
-                    botMessage.textContent = 'Chatbot: ' + data.answer;
-                    chatBox.appendChild(botMessage);
+            // Create bot message container
+            const botMessage = document.createElement('div');
+            botMessage.className = 'chat-bubble bot-message';
+            chatBox.appendChild(botMessage);
 
-                    // Scroll to the bottom of the chat box
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `query=${encodeURIComponent(message)}`
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let responseText = '';
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    // Decode and append new chunk
+                    const chunk = decoder.decode(value);
+                    responseText += chunk;
+                    
+                    // Update bot message
+                    botMessage.textContent = responseText;
+                    
+                    // Scroll to bottom
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
-            })
-            .catch(error => {
+
+            } catch (error) {
                 console.error('Error:', error);
-                showError('An error occurred. Please try again later.');
-            });
+                showError('An error occurred while processing your request.');
+                botMessage.textContent = 'Sorry, there was an error processing your request.';
+            } finally {
+                // Re-enable input and button
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
         }
 
         function showError(message) {
             const errorMessage = document.getElementById('error-message');
             errorMessage.style.display = 'block';
             errorMessage.textContent = message;
+            
+            // Hide error after 5 seconds
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
         }
 
         function checkEnter(event) {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && !event.shiftKey && !userInput.disabled) {
+                event.preventDefault();
                 sendMessage();
             }
         }
