@@ -164,7 +164,7 @@ class LLMClient:
                     "The user wants to know their recently played tracks. Provide a list of recently played tracks based on the provided Spotify data.\n"
                     f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                 )
-            # Handle each query type individually
+
             elif query_type == 'artist_info':
                 # Extract artist name from query
                 artist_name = query.split()[-1]  # Simple extraction for now
