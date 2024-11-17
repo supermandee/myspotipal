@@ -275,8 +275,14 @@ def chat():
 @app.route('/ask', methods=['POST'])
 def ask():
     access_token = ensure_valid_access_token()
+    if isinstance(access_token, Response):  # New check for redirect response
+        return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
+    
     if not access_token:
-        return jsonify({"error": "Access token is invalid or expired"}), 401
+        # Added second attempt to refresh
+        access_token = refresh_token()
+        if not access_token:
+            return jsonify({"error": "Could not refresh access token", "redirect": url_for('login')}), 401
 
     spotify_data = cache.get('spotify_data')
     if not spotify_data:
@@ -294,9 +300,12 @@ def ask():
     session_id = session['session_id']
 
     def generate():
-        response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
-        for chunk in response_iterator:
-            yield chunk
+        try:  # Added error handling
+            response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
+            for chunk in response_iterator:
+                yield chunk
+        except Exception as e:
+            yield f"Error: {str(e)}"
 
     return Response(generate(), mimetype='text/plain')
     
