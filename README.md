@@ -68,7 +68,7 @@ FLASK_APP_SECRET_KEY=your_secret_key
 
 2. Get it running:
 ```bash
-git clone [repository-url]
+git clone https://github.com/supermandee/myspotipal.git
 pip install -r requirements.txt
 python app.py
 ```
