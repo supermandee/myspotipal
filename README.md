@@ -79,3 +79,7 @@ python app.py
 
 ## Want to Contribute? 💡
 Got ideas for making MySpotiPal even better? Open a pull request or issue - let's make it awesome together!
+
+## License
+
+This project is licensed under the MIT License. See the [MIT License](./LICENSE.txt). file for more information.
