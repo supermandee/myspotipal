@@ -70,7 +70,6 @@ def get_followed_artists(access_token):
 
     return artists
 
-
 def get_user_playlists(access_token):
     url = 'https://api.spotify.com/v1/me/playlists?limit=50'
     headers = {
