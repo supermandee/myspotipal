@@ -2,8 +2,15 @@
 
 ## Your Personal Spotify AI Assistant
 
-Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify library inside out! MySpotiPal can answer all your music-related questions and help you explore your listening habits! ✨ MySpotiPal is an intelligent chatbot that connects to your Spotify account to answer questions about your music listening habits and provide information about artists, songs, and playlists. By combining Spotify's API data with GPT-4's natural language processing, MySpotiPal can understand and answer your questions about music in a conversational way.
+Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify library inside out! Whether you're curious about your listening habits or seeking new musical discoveries, MySpotiPal is here to answer all your music-related questions! Engage in a fun, interactive way as you explore the diverse world of music tailored just for you!  ✨ 
 
+## Tech Stack 🛠️
+- Flask web application
+- Spotify Web API
+- OpenAI GPT-4
+- Python
+- HTML
+- JavaScript
 
 ## What Can MySpotiPal Do? 🌟
 
@@ -21,7 +28,7 @@ MySpotiPal analyzes your listening habits across different timeframes (4 weeks, 
 "Show me my playlists"
 "What did I listen to recently?"
 ```
-Keep track of your followed artists (up to 100), playlists, and recent plays
+Keep track of your followed artists, playlists, and recent plays
 
 ### Learn About Any Artist 🎤
 ```
@@ -42,11 +49,6 @@ Get both general info and Spotify stats for any artist!
 - AI-powered playlist creation from text prompts
 - Direct playlist saving to your Spotify
 - Enhanced recommendation system
-
-## Tech Stack 🛠️
-- Flask web application
-- Spotify Web API
-- OpenAI GPT-4
 
 ## Technical Setup 🛠️
 
@@ -73,7 +75,6 @@ python app.py
 
 ## Good to Know 📝
 - While you can follow unlimited artists on Spotify, the chat functionality processes a limited subset of your followed artists when answering queries.
-- Uses Flask + Spotify API + GPT-4
 - Data is always fresh from Spotify's API
 
 ## Want to Contribute? 💡
