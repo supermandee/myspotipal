@@ -166,27 +166,40 @@ class LLMClient:
                 )
 
             elif query_type == 'artist_info':
-                # Extract artist name from query
-                artist_name = query.split()[-1]  # Simple extraction for now
-                artist_info = search_artist(artist_name, access_token)
-                
-                # Pass the full query to get contextual response
-                response = ""
-                
-                # If query is about stats/genres/followers, include Spotify data
-                if any(word in query.lower() for word in ['followers', 'popular', 'genre', 'streams']):
-                    response += f"Spotify Statistics for {artist_name}:\n"
-                    response += f"Genres: {', '.join(artist_info['genres'])}\n"
-                    response += f"Followers: {artist_info['followers']}\n"
-                    response += f"Popularity: {artist_info['popularity']}/100\n"
-                
-                # Get general info with the specific question
-                general_info = self.fetch_general_info("artist", artist_name, query)
-                if general_info:
-                    response += general_info
-                    
-                return response
+                # First get artist name
+                messages = [
+                    {"role": "system", "content": "You are a helper that identifies artist names in questions. Return ONLY the artist name, nothing else."},
+                    {"role": "user", "content": query}
+                ]
 
+                artist_response = self.client.chat.completions.create(
+                    model="gpt-4",
+                    messages=messages,
+                    max_tokens=50
+                )
+                artist_name = artist_response.choices[0].message.content.strip()
+                print(f"Identified artist: {artist_name}")
+                
+                artist_info = search_artist(artist_name, access_token)
+                general_info = self.fetch_general_info("artist", artist_name, query)
+                
+                if artist_info:
+                    # Let GPT format the response using both Spotify data and general info
+                    messages = [
+                        {"role": "system", "content": "You are a helpful Spotify assistant. Answer the user's question naturally. If the question is about stats (followers/genres/popularity), use the Spotify data. For other questions about the artist (age, background, origin, etc.), use the general information provided."},
+                        {"role": "user", "content": f"""
+            Question: {query}
+            Spotify data: Followers: {artist_info['followers']}, Genres: {', '.join(artist_info['genres'])}, Popularity: {artist_info['popularity']}/100
+            General information: {general_info}
+            """}
+                    ]
+
+                    response = self.client.chat.completions.create(
+                        model="gpt-4",
+                        messages=messages,
+                        max_tokens=150
+                    )
+                    return response.choices[0].message.content.strip()
             elif query_type == 'album_info':
                 album_name = query.split("album")[-1].strip()
                 album_info = search_item(album_name, 'album', access_token)
