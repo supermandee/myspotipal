@@ -50,7 +50,7 @@ class LLMClient:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4-turbo",
                 messages=messages,
                 max_tokens=10
             )
