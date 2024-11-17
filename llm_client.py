@@ -165,19 +165,16 @@ class LLMClient:
                         "The user wants to know their playlists. Provide a list of playlists based on the provided Spotify data.\n"
                         f"Here is the user's Spotify data:\n{data}\nUser Query: {query}\nResponse:"
                     )
-
                 elif query_type == 'saved_shows':
                     data = get_saved_shows(access_token)
                     podcasts, audiobooks = [], []
 
-                    if 'items' in data:
-                        for item in data['items']:
-                            show = item.get('show', {})
-                            show_type = self.classify_show(show)
-                            if show_type == "podcast":
-                                podcasts.append(show.get('name', 'Unknown Show'))
-                            elif show_type == "audiobook":
-                                audiobooks.append(show.get('name', 'Unknown Show'))
+                    for show in data:
+                        show_type = self.classify_show(show)
+                        if show_type == "podcast":
+                            podcasts.append(show.get('name', 'Unknown Show'))
+                        elif show_type == "audiobook":
+                            audiobooks.append(show.get('name', 'Unknown Show'))
 
                     if not podcasts and not audiobooks:
                         detailed_prompt = (
@@ -185,9 +182,18 @@ class LLMClient:
                         )
                     else:
                         detailed_prompt = (
-                            f"Podcasts:\n{podcasts}\nAudiobooks:\n{audiobooks}\nUser Query: {query}\nResponse:"
+                            "Here are your saved shows:\n\n"
+                            "Podcasts:\n"
                         )
+                        for podcast in podcasts:
+                            detailed_prompt += f"- {podcast}\n"
 
+                        detailed_prompt += "\nAudiobooks:\n"
+                        for audiobook in audiobooks:
+                            detailed_prompt += f"- {audiobook}\n"
+
+                        detailed_prompt += f"\nUser Query: {query}\nResponse:"
+                        
                 elif query_type == 'recent_tracks':
                     data = get_recently_played_tracks(access_token)
                     detailed_prompt = (
@@ -288,10 +294,7 @@ class LLMClient:
         except OpenAIError as e:
             print(f"Error parsing user input with LLM: {e}")
             return "Error extracting information."
-    
-class SpotifyClient:
-    def __init__(self, access_token):
-        self.access_token = access_token
+
 
     def classify_show(self, show):
         """
@@ -309,6 +312,12 @@ class SpotifyClient:
             return "audiobook"
         else:
             return "podcast"
+    
+class SpotifyClient:
+    def __init__(self, access_token):
+        self.access_token = access_token
+
+
         
     def search_for_artist(self, artist_name):
         # Call the imported search_artist function from helpers
