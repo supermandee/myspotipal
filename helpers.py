@@ -244,12 +244,7 @@ def get_artist_info(self, artist_id, access_token):
 
 def search_item(query, search_type, access_token):
     """
-    Search for a specific item type on Spotify.
-
-    :param query: The search string (e.g., artist name, album name, etc.)
-    :param search_type: The type of item to search for (e.g., 'artist', 'album', 'track', etc.)
-    :param access_token: The Spotify access token
-    :return: Search results with specific data based on type
+    Search for a specific item type on Spotify (e.g., album, artist).
     """
     url = 'https://api.spotify.com/v1/search'
     headers = {
@@ -258,72 +253,149 @@ def search_item(query, search_type, access_token):
     params = {
         'q': query,
         'type': search_type,
-        'limit': 1  # Adjust as needed
+        'limit': 1
     }
 
     response = requests.get(url, headers=headers, params=params)
 
     if response.status_code != 200:
-        print(f"Error searching for {search_type}:")
-        print("Request URL:", url)
-        print("Status Code:", response.status_code)
-        print("Response Text:", response.text)
+        print(f"Error searching for {search_type}: {response.status_code}")
         return None
 
     data = response.json()
 
-    # Handle search for 'artist' type
     if search_type == 'artist' and data['artists']['items']:
-        artist = data['artists']['items'][0]
-        return {
-            'id': artist['id'],
-            'name': artist['name'],
-            'genres': artist['genres'],
-            'followers': artist['followers']['total'],
-            'popularity': artist['popularity'],
-            'url': artist['external_urls']['spotify']
-        }
+        return _process_item(data['artists']['items'][0], search_type)
     
-    # Handle search for 'album' type
+    elif search_type == 'track' and data['tracks']['items']:
+        return _process_item(data['tracks']['items'][0], search_type)
+    
     elif search_type == 'album' and data['albums']['items']:
-        album = data['albums']['items'][0]
-        return {
-            'id': album['id'],
-            'name': album['name'],
-            'album_type': album['album_type'],
-            'artists': [artist['name'] for artist in album['artists']],  # List of artist names
-            'release_date': album['release_date'],
-            'total_tracks': album['total_tracks'],
-            'url': album['external_urls']['spotify'],
-        }
+        return _process_item(data['albums']['items'][0], search_type)
     
-    # Handle search for 'playlist' type
-    if search_type == 'playlist' and data['playlists']['items']:
-        playlist = data['playlists']['items'][0]
-        return {
-            'id': playlist['id'],
-            'name': playlist['name'],
-            'description': playlist.get('description'),
-            'owner': playlist['owner'].get('display_name', 'Unknown'),
-            'collaborative': playlist['collaborative'],
-            'public': playlist.get('public', 'Unknown'),
-            'url': playlist['external_urls']['spotify'],
-            'followers': playlist['followers']['total'],
-            'total_tracks': playlist['tracks']['total']
-        }
-
-    # Handle other search types like 'track', 'playlist', etc.
-    elif search_type in data and data[search_type]['items']:
-        item = data[search_type]['items'][0]
-        return {
-            'id': item.get('id'),
-            'name': item.get('name'),
-            'url': item['external_urls'].get('spotify'),
-            'additional_info': item  # This holds all other information about the item
-        }
-
+    elif search_type == 'playlist' and data['playlists']['items']:
+        return _process_item(data['playlists']['items'][0], search_type)
+    
+    elif search_type == 'show' and data['shows']['items']:
+        return _process_item(data['shows']['items'][0], search_type)
+    
+    elif search_type == 'episode' and data['episodes']['items']:
+        return _process_item(data['episodes']['items'][0], search_type)
+    
+    elif search_type == 'audiobook' and data['audiobooks']['items']:
+        return _process_item(data['audiobooks']['items'][0], search_type)
+    
     else:
         return None
+    
+def _process_item(item, item_type):
+    """Process different types of Spotify items"""
+    if item_type == 'artist':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'genres': item.get('genres', []),
+            'followers': item.get('followers', {}).get('total'),
+            'popularity': item.get('popularity'),
+            'images': item.get('images', []),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'track':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'artists': [{'id': a['id'], 'name': a['name']} for a in item['artists']],
+            'album': {
+                'id': item['album']['id'],
+                'name': item['album']['name'],
+                'release_date': item['album'].get('release_date')
+            },
+            'duration_ms': item.get('duration_ms'),
+            'popularity': item.get('popularity'),
+            'preview_url': item.get('preview_url'),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'album':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'artists': [{'id': a['id'], 'name': a['name']} for a in item['artists']],
+            'release_date': item.get('release_date'),
+            'total_tracks': item.get('total_tracks'),
+            'images': item.get('images', []),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'playlist':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'owner': {
+                'id': item['owner']['id'],
+                'name': item['owner'].get('display_name', 'Unknown')
+            },
+            'total_tracks': item['tracks']['total'],
+            'description': item.get('description'),
+            'images': item.get('images', []),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'show':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'description': item.get('description'),
+            'publisher': item.get('publisher'),
+            'media_type': item.get('media_type'),
+            'total_episodes': item.get('total_episodes'),
+            'languages': item.get('languages', []),
+            'images': item.get('images', []),
+            'explicit': item.get('explicit', False),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'episode':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'description': item.get('description'),
+            'duration_ms': item.get('duration_ms'),
+            'languages': item.get('languages', []),
+            'release_date': item.get('release_date'),
+            'explicit': item.get('explicit', False),
+            'show': {
+                'id': item['show'].get('id'),
+                'name': item['show'].get('name'),
+                'publisher': item['show'].get('publisher')
+            } if 'show' in item else None,
+            'images': item.get('images', []),
+            'uri': item['uri']
+        }
+    
+    elif item_type == 'audiobook':
+        return {
+            'id': item['id'],
+            'name': item['name'],
+            'authors': [author['name'] for author in item.get('authors', [])],
+            'narrators': [narrator['name'] for narrator in item.get('narrators', [])],
+            'description': item.get('description'),
+            'publisher': item.get('publisher'),
+            'languages': item.get('languages', []),
+            'total_chapters': item.get('total_chapters'),
+            'duration_ms': item.get('duration_ms'),
+            'explicit': item.get('explicit', False),
+            'images': item.get('images', []),
+            'uri': item['uri']
+        }
+    
+    # Default case for unknown types
+    return {
+        'id': item['id'],
+        'name': item['name'],
+        'uri': item['uri']
+    }
     
 def get_artist_id(spotify_client, artist_name):
     """
