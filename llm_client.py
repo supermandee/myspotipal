@@ -1,6 +1,7 @@
 from openai import OpenAI, OpenAIError
 import os
 from dotenv import load_dotenv
+from typing import Dict, Optional, List, Union
 from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, search_artist, get_artist_info, search_item
 import uuid
 
@@ -18,7 +19,11 @@ class LLMClient:
     
     def classify_query(self, query):
         messages = [
-            {"role": "system", "content": "You are a helpful assistant. Classify the following query into one of the categories: top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks, artist_info, or unknown. Respond with only the category."},
+            {"role": "system", "content": """You are a helpful assistant. Classify the following query into one of these categories:
+                top_artists, top_tracks, followed_artists, playlists, saved_shows, recent_tracks,
+                artist_info, album_info, track_info, playlist_info, show_info, episode_info, audiobook_info,
+                recommendation, or unknown. Respond with only the category."""},
+            ## top and followed items
             {"role": "user", "content": "What are my favorite artists?"},
             {"role": "assistant", "content": "top_artists"},
             {"role": "user", "content": "Show me my top songs."},
@@ -29,19 +34,29 @@ class LLMClient:
             {"role": "assistant", "content": "playlists"},
             {"role": "user", "content": "What podcasts do I have saved?"},
             {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "What audiobooks do I have saved?"},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "List my saved shows."},
+            {"role": "assistant", "content": "saved_shows"},
+            {"role": "user", "content": "What have I listened to recently?"},
+            {"role": "assistant", "content": "recent_tracks"},
+            ## asking for info
             {"role": "user", "content": "Tell me about Modern Sophia."},
             {"role": "assistant", "content": "artist_info"},
             {"role": "user", "content": "Tell me about album."},
             {"role": "assistant", "content": "album_info"},
             {"role": "user", "content": "Search playlist."},
             {"role": "assistant", "content": "playlist_info"},
-            {"role": "user", "content": "What have I listened to recently?"},
-            {"role": "assistant", "content": "recent_tracks"},
+            {"role": "user", "content": "Tell me about this song Anti-Hero"},
+            {"role": "assistant", "content": "track_info"},
+            {"role": "user", "content": "Tell me about the show Serial"},
+            {"role": "assistant", "content": "show_info"},
+            {"role": "user", "content": "What's this episode of Joe Rogan about?"},
+            {"role": "assistant", "content": "episode_info"},
+            {"role": "user", "content": "Information about Harry Potter audiobook"},
+            {"role": "assistant", "content": "audiobook_info"},
+            ## recommendations
             {"role": "user", "content": "Recommend me some podcasts."},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": "What audiobooks do I have saved?"},
-            {"role": "assistant", "content": "saved_shows"},
-            {"role": "user", "content": "List my saved shows."},
             {"role": "assistant", "content": "saved_shows"},
             {"role": "user", "content": "Recommend me some songs by Taylor Swift for a workout."},  # Example recommendation query
             {"role": "assistant", "content": "recommendation"},
@@ -135,8 +150,140 @@ class LLMClient:
             self.memory[session_id]["history"].append({"query": query})
 
             try:
+                # Extract item name and process based on query type
+                if query_type in ['track_info', 'playlist_info', 'show_info', 'episode_info', 'audiobook_info', 'artist_info', 'album_info']:
+                    messages = [
+                        {"role": "system", "content": """You are a helper that identifies items in questions. 
+                        For tracks, return the track name and artist in format: 'track_name by artist_name'
+                        For albums, return the album name and artist in format: 'album_name by artist_name'
+                        For all other items (playlists, shows, episodes, audiobooks), return just the name.
+                        Return ONLY the extracted information, nothing else."""},
+                        {"role": "user", "content": f"Query type: {query_type}\nQuery: {query}"}
+                    ]
+
+                    name_response = self.client.chat.completions.create(
+                        model="gpt-4",
+                        messages=messages,
+                        max_tokens=50
+                    )
+                    item_name = name_response.choices[0].message.content.strip()
+                    print(f"Identified item: {item_name}")
+
+                    # Parse item_name if it contains artist information
+                    search_filters = None
+                    if ' by ' in item_name and query_type in ['track_info', 'album_info']:
+                        name_part, artist_part = item_name.split(' by ', 1)
+                        item_name = name_part.strip()
+                        search_filters = {'artist': artist_part.strip()}
+
+                    # Map query types to Spotify search types
+                    search_type_mapping = {
+                        'track_info': 'track',
+                        'playlist_info': 'playlist',
+                        'show_info': 'show',
+                        'episode_info': 'episode',
+                        'audiobook_info': 'audiobook',
+                        'artist_info': 'artist',
+                        'album_info': 'album'
+                    }
+
+                    search_type = search_type_mapping.get(query_type)
+                    item_info = search_item(item_name, search_type, access_token, search_filters)
+                    general_info = self.fetch_general_info(search_type, item_name, query)
+
+
+                    if item_info:
+                        if query_type == 'track_info':
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Song: {item_info['name']}
+    - Artist(s): {', '.join(artist['name'] for artist in item_info['artists'])}
+    - Album: {item_info['album']['name']}
+    - Release Date: {item_info['album'].get('release_date')}
+    - Popularity: {item_info.get('popularity', 'N/A')}/100
+    General information: {general_info}
+    """
+                        elif query_type == 'playlist_info':
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Playlist: {item_info['name']}
+    - Created by: {item_info['owner']['name']}
+    - Total tracks: {item_info['total_tracks']}
+    - Description: {item_info.get('description', 'No description available')}
+    General information: {general_info}
+    """
+                        elif query_type == 'show_info':
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Show: {item_info['name']}
+    - Publisher: {item_info['publisher']}
+    - Total Episodes: {item_info['total_episodes']}
+    - Description: {item_info['description']}
+    General information: {general_info}
+    """
+                        elif query_type == 'episode_info':
+                            show_info = item_info.get('show', {})
+                            duration_mins = item_info['duration_ms'] // 60000
+                            duration_secs = (item_info['duration_ms'] % 60000) // 1000
+                            
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Episode: {item_info['name']}
+    - Show: {show_info.get('name', 'N/A')}
+    - Publisher: {show_info.get('publisher', 'N/A')}
+    - Duration: {duration_mins}:{duration_secs:02d}
+    - Release Date: {item_info.get('release_date', 'N/A')}
+    - Language: {item_info.get('language', 'N/A')}
+    - Description: {item_info['description']}
+    General information: {general_info}
+    """
+                        elif query_type == 'audiobook_info':
+                            detailed_prompt = f"""
+Question: {query}
+Spotify data:
+- Audiobook: {item_info['name']}
+- Author(s): {', '.join(item_info['authors'])}  # Already processed into list of names
+- Narrator(s): {', '.join(item_info['narrators'])}  # Already processed into list of names
+- Publisher: {item_info['publisher']}
+- Chapters: {item_info['total_chapters']}
+- Description: {item_info['description']}
+General information: {general_info} """
+                        elif query_type == 'artist_info':
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Artist: {item_info['name']}
+    - Genres: {', '.join(item_info['genres'])}
+    - Followers: {item_info['followers']}
+    - Popularity: {item_info['popularity']}/100
+    General information: {general_info}
+    """
+                        elif query_type == 'album_info':
+                            detailed_prompt = f"""
+    Question: {query}
+    Spotify data:
+    - Album: {item_info['name']}
+    - Artist(s): {', '.join(artist['name'] for artist in item_info['artists'])}
+    - Release Date: {item_info['release_date']}
+    - Total Tracks: {item_info['total_tracks']}
+    General information: {general_info}
+    """
+                    else:
+                        detailed_prompt = f"Sorry, I couldn't find information about '{item_name}' on Spotify.\n"
+                        if general_info:
+                            detailed_prompt += f"However, here is some general information:\n{general_info}"
+
+                    messages = [
+                        {"role": "system", "content": "You are a helpful Spotify assistant. Answer the user's question naturally. Use Spotify data for current information and general information for historical or background details. Focus on answering specifically what was asked."},
+                        {"role": "user", "content": detailed_prompt}
+                    ]
+
                 # Prepare the detailed prompt based on query type
-                if query_type == 'recommend':
+                elif query_type == 'recommend':
                     extracted_info = self.parse_user_input(query)
                     detailed_prompt = f"The user is asking for a recommendation. Based on the extracted information: {extracted_info}, generate appropriate recommendations."
 
@@ -312,6 +459,55 @@ class LLMClient:
             return "audiobook"
         else:
             return "podcast"
+        
+def extract_content_details(self, query: str, query_type: str) -> Dict:
+    """Extract content name and additional details from query using LLM"""
+    # Customize prompt based on query type
+    if query_type == 'track_info':
+        system_content = """You are a helper that identifies track information in questions. 
+        If the query specifies both track and artist, return in format: 'track_name by artist_name'
+        If only track is specified, return just the track name.
+        Return ONLY the extracted information, nothing else."""
+    elif query_type == 'album_info':
+        system_content = """You are a helper that identifies album information in questions. 
+        If the query specifies both album and artist, return in format: 'album_name by artist_name'
+        If only album is specified, return just the album name.
+        Return ONLY the extracted information, nothing else."""
+    else:
+        system_content = """You are a helper that identifies item names in questions. 
+        Return ONLY the exact name being asked about, nothing else."""
+
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": query}
+    ]
+    
+    try:
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            max_tokens=150
+        )
+        details = response.choices[0].message.content.strip()
+        self.logger.info(f"Extracted details: {details}")
+        
+        # Only parse for artist filter in track and album queries when "by" is present
+        if ' by ' in details and query_type in ['track_info', 'album_info']:
+            name_part, artist_part = details.split(' by ', 1)
+            return {
+                "query": name_part.strip(),
+                "filters": {"artist": artist_part.strip()}
+            }
+        
+        # For all other cases, return just the query without filters
+        return {
+            "query": details,
+            "filters": None
+        }
+            
+    except Exception as e:
+        self.logger.error(f"Error extracting content details: {e}")
+        return {"query": query, "filters": None}
     
 class SpotifyClient:
     def __init__(self, access_token):
