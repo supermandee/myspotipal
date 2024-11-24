@@ -241,10 +241,10 @@ class RecommendationAnalyzer:
     def analyze_request(self, query: str) -> Optional[Dict]:
         """
         Analyze a music recommendation request and extract structured information.
-        Now includes Spotify ID resolution.
+        Now includes Spotify ID resolution and dynamic mood attribute mapping.
         """
         try:
-            # Get initial analysis (your existing code)
+            # Get initial analysis from the LLM
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
@@ -256,7 +256,7 @@ class RecommendationAnalyzer:
 
             initial_analysis = json.loads(response.choices[0].message.content.strip())
             
-            # Your existing processing (duration, mood mappings, attribute validation)
+            # Process duration and limit
             if 'duration_minutes' in initial_analysis:
                 duration = initial_analysis['duration_minutes']
                 song_count = math.ceil(duration * 60 * 1000 / self.AVERAGE_SONG_DURATION_MS)
@@ -264,19 +264,11 @@ class RecommendationAnalyzer:
             elif 'limit' not in initial_analysis:
                 initial_analysis['limit'] = 20
 
-            if 'mood' in initial_analysis:
-                mood = initial_analysis['mood'].lower()
-                if mood in self.MOOD_MAPPINGS:
-                    if 'attributes' not in initial_analysis:
-                        initial_analysis['attributes'] = {}
-                    initial_analysis['attributes'].update(self.MOOD_MAPPINGS[mood])
-                    del initial_analysis['mood']
-
             # Validate attributes
             if 'attributes' in initial_analysis:
                 initial_analysis['attributes'] = self.validate_attributes(initial_analysis['attributes'])
 
-            # NEW: Resolve seeds to Spotify IDs and valid genres
+            # Resolve seeds to Spotify IDs and valid genres
             resolved_seeds = self.resolve_seeds(initial_analysis)
             
             # Combine everything into final analysis
@@ -299,6 +291,7 @@ class RecommendationAnalyzer:
             self.logger.error(f"Error in analyze_request: {e}")
             return None
 
+
     def get_system_prompt(self) -> str:
         """
         Return the system prompt for GPT
@@ -312,23 +305,24 @@ class RecommendationAnalyzer:
             "seed_tracks": list of track names (max 5 total seeds),
             "seed_genres": list of genres (max 5 total seeds),
             "duration_minutes": integer (if time specified),
-            "mood": string (if mood/vibe specified),
             "attributes": {
-                // All your existing attributes with min_, max_, target_ prefixes
+                "mood": string (identify mood/vibe if specified),
+                // Include relevant audio features based on the identified mood
+                // Use min_, max_, or target_ prefix for the range
+                // For example, an "upbeat" mood might have:
+                // "min_energy": 0.7, "min_valence": 0.6, "target_tempo": 120
+                // A "relaxing" mood might have:
+                // "max_energy": 0.4, "target_valence": 0.5, "target_acousticness": 0.6
+                // Adjust the attributes based on your understanding of the mood
             }
         }
-
-        For duration-based requests:
-        - 30 minutes ≈ 8-9 songs
-        - 45 minutes ≈ 12-13 songs
-        - 60 minutes ≈ 16-17 songs
-        (Based on average song length of 3:20)
-
+        
         For tracks, you can specify artist for better matching:
         "seed_tracks": [
             {"name": "Anti-Hero", "artist": "Taylor Swift"},
-            "Shake It Off"
-        ]"""
+            "Shake It Off"  
+        ]
+        """
     
     def validate_attributes(self, attributes: Dict) -> Dict:
         """
@@ -398,16 +392,16 @@ def test_analyzer():
     analyzer = RecommendationAnalyzer()
     
     test_queries = [
-        "Give me a 30 minute workout playlist",
-        "I want relaxing songs for studying, not too loud",
-        "Songs like Taylor Swift but more upbeat",
-        "Create a 45-minute party playlist with high energy dance songs",
-        "I need focus music for 2 hours of work, instrumental preferred",
-        "Songs similar to 'Anti-Hero' but sadder",
-        "Give me tracks with high danceability and energy for a workout",
-        "I want a 15-minute meditation playlist with very low energy",
-        "Create a playlist mixing hip-hop and electronic genres",
-        "Find me some songs between 120-140 BPM for running"
+        "Give me a 30 minute playlist for eating watermelon by the beach",
+        # "I want relaxing songs for studying, not too loud",
+        # "Songs like Taylor Swift but more upbeat",
+        # "Create a 45-minute party playlist with high energy dance songs",
+        # "I need focus music for 2 hours of work, instrumental preferred",
+        # "Songs similar to 'Anti-Hero' but sadder",
+        # "Give me tracks with high danceability and energy for a workout",
+        # "I want a 15-minute meditation playlist with very low energy",
+        # "Create a playlist mixing hip-hop and electronic genres",
+        # "Find me some songs between 120-140 BPM for running"
     ]
     
     print("\nTesting Recommendation Analyzer\n" + "="*50)
