@@ -52,39 +52,39 @@ class RecommendationAnalyzer:
             "valence": {"type": "float", "range": [0, 1]}
         }
 
-        # Common attribute mappings for natural language
-        self.MOOD_MAPPINGS = {
-            "upbeat": {
-                "min_energy": 0.7,
-                "min_valence": 0.6,
-                "target_energy": 0.8,
-                "target_tempo": 120
-            },
-            "relaxing": {
-                "max_energy": 0.4,
-                "target_valence": 0.5,
-                "max_tempo": 100,
-                "target_acousticness": 0.6
-            },
-            "workout": {
-                "min_energy": 0.8,
-                "min_tempo": 120,
-                "target_energy": 0.9,
-                "target_valence": 0.7
-            },
-            "study": {
-                "max_energy": 0.4,
-                "min_instrumentalness": 0.5,
-                "target_energy": 0.3,
-                "max_speechiness": 0.3
-            },
-            "party": {
-                "min_danceability": 0.7,
-                "min_energy": 0.7,
-                "target_danceability": 0.8,
-                "target_popularity": 70
-            }
-        }
+        # # Common attribute mappings for natural language
+        # self.MOOD_MAPPINGS = {
+        #     "upbeat": {
+        #         "min_energy": 0.7,
+        #         "min_valence": 0.6,
+        #         "target_energy": 0.8,
+        #         "target_tempo": 120
+        #     },
+        #     "relaxing": {
+        #         "max_energy": 0.4,
+        #         "target_valence": 0.5,
+        #         "max_tempo": 100,
+        #         "target_acousticness": 0.6
+        #     },
+        #     "workout": {
+        #         "min_energy": 0.8,
+        #         "min_tempo": 120,
+        #         "target_energy": 0.9,
+        #         "target_valence": 0.7
+        #     },
+        #     "study": {
+        #         "max_energy": 0.4,
+        #         "min_instrumentalness": 0.5,
+        #         "target_energy": 0.3,
+        #         "max_speechiness": 0.3
+        #     },
+        #     "party": {
+        #         "min_danceability": 0.7,
+        #         "min_energy": 0.7,
+        #         "target_danceability": 0.8,
+        #         "target_popularity": 70
+        #     }
+        # }
     def setup_logging(self):
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("RecommendationAnalyzer")
@@ -379,7 +379,6 @@ class RecommendationAnalyzer:
             self.logger.error(f"Error refreshing token: {str(e)}")
             return False
 
-    # Keep all your existing methods exactly as they are
     def _setup_logger(self) -> logging.Logger:
         """Setup logging configuration"""
         logging.basicConfig(level=logging.DEBUG)
@@ -392,7 +391,7 @@ def test_analyzer():
     analyzer = RecommendationAnalyzer()
     
     test_queries = [
-        "Give me a 30 minute playlist for eating watermelon by the beach",
+        "best songs for pumped workout gym",
         # "I want relaxing songs for studying, not too loud",
         # "Songs like Taylor Swift but more upbeat",
         # "Create a 45-minute party playlist with high energy dance songs",
