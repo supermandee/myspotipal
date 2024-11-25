@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from typing import Dict, Optional, List, Union
 from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, search_artist, get_artist_info, search_item
 import uuid
+import requests
+from recommendation_analyzer import RecommendationAnalyzer 
 
 class LLMClient:
     def __init__(self):
@@ -150,8 +152,57 @@ class LLMClient:
             self.memory[session_id]["history"].append({"query": query})
 
             try:
+                if query_type == 'recommendation':
+                    try:
+                        # Initialize the recommendation analyzer
+                        analyzer = RecommendationAnalyzer()
+                        
+                        # Analyze the request - this will handle:
+                        # - Parsing duration, mood, genres, etc.
+                        # - Converting artist names to Spotify IDs
+                        # - Validating and formatting all parameters
+                        analysis = analyzer.analyze_request(query)
+                        
+                        if not analysis:
+                            return iter(["I had trouble understanding your music request. Could you please rephrase it?"])
+                        
+                        # The analysis already contains properly formatted parameters for Spotify's API
+                        # including validated audio features and resolved seed IDs
+                        
+                        # Get recommendations using the analyzed parameters
+                        response = requests.get(
+                            'https://api.spotify.com/v1/recommendations',
+                            headers={'Authorization': f'Bearer {access_token}'},
+                            params=analysis
+                        )
+                        
+                        if response.status_code != 200:
+                            print(f"Error from Spotify API: {response.status_code}")
+                            print(f"Response: {response.text}")
+                            return iter(["Sorry, I had trouble getting recommendations from Spotify."])
+                            
+                        tracks = response.json()['tracks']
+                        
+                        if not tracks:
+                            return iter(["I couldn't find any recommendations matching your criteria."])
+                        
+                        # Format the response
+                        message = "Here are some recommended songs based on your request:\n\n"
+                        
+                        for i, track in enumerate(tracks[:10], 1):
+                            artists = ", ".join(artist['name'] for artist in track['artists'])
+                            album = track['album']['name']
+                            message += f"{i}. '{track['name']}' by {artists}\n"
+                            message += f"   From the album: {album}\n\n"
+                        
+                        return iter([message])
+                        
+                    except Exception as e:
+                        print(f"Error processing recommendation request: {e}")
+                        return iter(["Sorry, I encountered an error while getting recommendations."])
+                
                 # Extract item name and process based on query type
-                if query_type in ['track_info', 'playlist_info', 'show_info', 'episode_info', 'audiobook_info', 'artist_info', 'album_info']:
+                elif query_type in ['track_info', 'playlist_info', 'show_info', 'episode_info', 'audiobook_info', 'artist_info', 'album_info']:
                     messages = [
                         {"role": "system", "content": """You are a helper that identifies items in questions. 
                         For tracks, return the track name and artist in format: 'track_name by artist_name'
@@ -460,97 +511,143 @@ General information: {general_info} """
         else:
             return "podcast"
         
-def extract_content_details(self, query: str, query_type: str) -> Dict:
-    """Extract content name and additional details from query using LLM"""
-    # Customize prompt based on query type
-    if query_type == 'track_info':
-        system_content = """You are a helper that identifies track information in questions. 
-        If the query specifies both track and artist, return in format: 'track_name by artist_name'
-        If only track is specified, return just the track name.
-        Return ONLY the extracted information, nothing else."""
-    elif query_type == 'album_info':
-        system_content = """You are a helper that identifies album information in questions. 
-        If the query specifies both album and artist, return in format: 'album_name by artist_name'
-        If only album is specified, return just the album name.
-        Return ONLY the extracted information, nothing else."""
-    else:
-        system_content = """You are a helper that identifies item names in questions. 
-        Return ONLY the exact name being asked about, nothing else."""
-
-    messages = [
-        {"role": "system", "content": system_content},
-        {"role": "user", "content": query}
-    ]
-    
-    try:
-        response = self.client.chat.completions.create(
-            model="gpt-4",
-            messages=messages,
-            max_tokens=150
-        )
-        details = response.choices[0].message.content.strip()
-        self.logger.info(f"Extracted details: {details}")
-        
-        # Only parse for artist filter in track and album queries when "by" is present
-        if ' by ' in details and query_type in ['track_info', 'album_info']:
-            name_part, artist_part = details.split(' by ', 1)
-            return {
-                "query": name_part.strip(),
-                "filters": {"artist": artist_part.strip()}
-            }
-        
-        # For all other cases, return just the query without filters
-        return {
-            "query": details,
-            "filters": None
-        }
-            
-    except Exception as e:
-        self.logger.error(f"Error extracting content details: {e}")
-        return {"query": query, "filters": None}
-    
-class SpotifyClient:
-    def __init__(self, access_token):
-        self.access_token = access_token
-
-
-        
-    def search_for_artist(self, artist_name):
-        # Call the imported search_artist function from helpers
-        return search_artist(artist_name, self.access_token)
-    
-    def get_recommendations(self, artist_id=None, seed_genres=None, min_danceability=None, max_danceability=None, min_energy=None, max_energy=None, target_danceability=None, target_energy=None):
-        """
-        Fetch recommendations from the Spotify API based on artist ID, genres, and tunable parameters.
-        """
-        endpoint = "https://api.spotify.com/v1/recommendations"
-        params = {
-            "limit": 10,  # Example limit
-            "seed_artists": artist_id if artist_id else None,
-            "seed_genres": seed_genres if seed_genres else None,
-            "min_danceability": min_danceability,
-            "max_danceability": max_danceability,
-            "target_danceability": target_danceability,
-            "min_energy": min_energy,
-            "max_energy": max_energy,
-            "target_energy": target_energy
-        }
-        
-        # Remove keys with None values to avoid sending them in the request
-        params = {k: v for k, v in params.items() if v is not None}
-
-        headers = {
-            "Authorization": f"Bearer {self.access_token}"
-        }
-
-        # Make the request to Spotify's API
-        response = requests.get(endpoint, headers=headers, params=params)
-
-        if response.status_code == 200:
-            recommendations = response.json()
-            return recommendations['tracks']  # Returns the recommended tracks
+    def extract_content_details(self, query: str, query_type: str) -> Dict:
+        """Extract content name and additional details from query using LLM"""
+        # Customize prompt based on query type
+        if query_type == 'track_info':
+            system_content = """You are a helper that identifies track information in questions. 
+            If the query specifies both track and artist, return in format: 'track_name by artist_name'
+            If only track is specified, return just the track name.
+            Return ONLY the extracted information, nothing else."""
+        elif query_type == 'album_info':
+            system_content = """You are a helper that identifies album information in questions. 
+            If the query specifies both album and artist, return in format: 'album_name by artist_name'
+            If only album is specified, return just the album name.
+            Return ONLY the extracted information, nothing else."""
         else:
-            return f"Error fetching recommendations: {response.status_code}"
+            system_content = """You are a helper that identifies item names in questions. 
+            Return ONLY the exact name being asked about, nothing else."""
+
+        messages = [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": query}
+        ]
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=150
+            )
+            details = response.choices[0].message.content.strip()
+            self.logger.info(f"Extracted details: {details}")
+            
+            # Only parse for artist filter in track and album queries when "by" is present
+            if ' by ' in details and query_type in ['track_info', 'album_info']:
+                name_part, artist_part = details.split(' by ', 1)
+                return {
+                    "query": name_part.strip(),
+                    "filters": {"artist": artist_part.strip()}
+                }
+            
+            # For all other cases, return just the query without filters
+            return {
+                "query": details,
+                "filters": None
+            }
+                
+        except Exception as e:
+            self.logger.error(f"Error extracting content details: {e}")
+            return {"query": query, "filters": None}
+        
+    def format_recommendations(self, tracks, include_previews=True, limit=10):
+        """
+        Format a list of track recommendations into a readable message.
+        
+        Args:
+            tracks (list): List of track objects from Spotify API
+            include_previews (bool): Whether to include preview URLs
+            limit (int): Maximum number of tracks to include in the message
+            
+        Returns:
+            str: Formatted message with track recommendations
+        """
+        if not tracks:
+            return "I couldn't find any recommendations matching your criteria."
+        
+        message = "Here are some recommended songs based on your request:\n\n"
+        
+        for i, track in enumerate(tracks[:limit], 1):
+            # Basic track info
+            artists = ", ".join(artist['name'] for artist in track['artists'])
+            album = track['album']['name']
+            release_date = track['album'].get('release_date', 'N/A')
+            
+            # Format track details
+            message += f"{i}. '{track['name']}' by {artists}\n"
+            message += f"   Album: {album} ({release_date})\n"
+            
+            # Add popularity if available
+            if 'popularity' in track:
+                message += f"   Popularity: {'🔥' * (track['popularity'] // 20 + 1)}\n"
+            
+            # Add preview URL if available and requested
+            if include_previews and track.get('preview_url'):
+                message += f"   Preview: {track['preview_url']}\n"
+            
+            # Add Spotify URI for easy access
+            message += f"   Open in Spotify: {track['external_urls'].get('spotify', '')}\n"
+            
+            message += "\n"
+        
+        # Add a footer with playlist info if there are more tracks
+        if len(tracks) > limit:
+            message += f"\nShowing {limit} of {len(tracks)} recommended tracks."
+        
+        return message
+    
+# class SpotifyClient:
+#     def __init__(self, access_token):
+#         self.access_token = access_token
+
+
+        
+#     def search_for_artist(self, artist_name):
+#         # Call the imported search_artist function from helpers
+#         return search_artist(artist_name, self.access_token)
+    
+#     def get_recommendations(self, artist_id=None, seed_genres=None, min_danceability=None, max_danceability=None, min_energy=None, max_energy=None, target_danceability=None, target_energy=None):
+#         """
+#         Fetch recommendations from the Spotify API based on artist ID, genres, and tunable parameters.
+#         """
+#         endpoint = "https://api.spotify.com/v1/recommendations"
+#         params = {
+#             "limit": 10,  # Example limit
+#             "seed_artists": artist_id if artist_id else None,
+#             "seed_genres": seed_genres if seed_genres else None,
+#             "min_danceability": min_danceability,
+#             "max_danceability": max_danceability,
+#             "target_danceability": target_danceability,
+#             "min_energy": min_energy,
+#             "max_energy": max_energy,
+#             "target_energy": target_energy
+#         }
+        
+#         # Remove keys with None values to avoid sending them in the request
+#         params = {k: v for k, v in params.items() if v is not None}
+
+#         headers = {
+#             "Authorization": f"Bearer {self.access_token}"
+#         }
+
+#         # Make the request to Spotify's API
+#         response = requests.get(endpoint, headers=headers, params=params)
+
+#         if response.status_code == 200:
+#             recommendations = response.json()
+#             return recommendations['tracks']  # Returns the recommended tracks
+#         else:
+#             return f"Error fetching recommendations: {response.status_code}"
      
     
 

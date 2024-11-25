@@ -423,3 +423,4 @@ def get_artist_id(spotify_client, artist_name):
     else:
         print(f"Artist '{artist_name}' not found.")
         return None
+    
