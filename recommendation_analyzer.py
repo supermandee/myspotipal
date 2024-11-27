@@ -3,11 +3,31 @@ from typing import Dict, Optional, Set
 import logging
 import json
 import math
-from helpers import search_artist, search_item
+from spotify_client import search_artist, search_item
 import requests
 import base64
 from dotenv import load_dotenv
 import os
+
+RA_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "analyze_request", 
+        "description": "Convert natural language music requests into structured Spotify parameters.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language music recommendation request to convert to Spotify parameters"
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        },
+        "strict": True
+    }
+}
 
 class RecommendationAnalyzer:
     def __init__(self):
@@ -417,5 +437,72 @@ def test_analyzer():
         
         print("-" * 50)
 
+from dotenv import load_dotenv
+def handle_recommendation(response, analyzer: RecommendationAnalyzer) -> dict:
+    load_dotenv()
+    if not response.choices[0].message.tool_calls:
+        return None
+    analysis = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
+    
+    print("!"*200)
+    print(analysis)
+    print("!"*200)
+    # Convert to Spotify parameters using analyzer
+    spotify_params = analyzer.analyze_request(analysis["query"])
+    params = {k: v for d in [spotify_params, spotify_params['attributes']] for k, v in d.items() if k != 'attributes'}
+    params['seed_genres'] = 'pop'
+    params['market'] = 'US' 
+    params['seed_tracks'] = '0c6xIDDpzE81m2q797ordA'
+    print("!"*200)
+    print(params)
+    print("!"*200)
+
+    
+    client_id = os.getenv('SPOTIFY_CLIENT_ID')
+    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+    auth_header = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
+
+    token_response = requests.post(
+        'https://accounts.spotify.com/api/token',
+        headers={'Authorization': f'Basic {auth_header}'},
+        data={'grant_type': 'client_credentials'}
+    )
+
+    print("ACCESS_TOKEN", token_response)
+    access_token = token_response.json()['access_token']
+    print("ACCESS_TOKEN", access_token)
+    spotify_response = requests.get(
+        'https://api.spotify.com/v1/recommendations',
+        headers={'Authorization': f'Bearer {access_token}'},
+        params=params
+    )
+    if spotify_response.status_code != 200:
+        raise        Exception(f"Spotify API error: {spotify_response.status_code} - {spotify_response.text}")
+    else:
+        print("GOOD"*23)
+
+    # Print response for debugging
+    print(spotify_response.status_code)
+    print(spotify_response.text)
+    return spotify_response.json()
+
+
+def get_music_recommendations() -> dict:
+    analyzer = RecommendationAnalyzer()
+    response = analyzer.client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "Just use analyze_request use it as query to convert to params"},
+            {"role": "user", "content": "something that sounds like sunshine"}
+        ],
+        tools=[RA_SCHEMA],
+    )
+    print("*/"*88)
+    print(response)
+    
+    return handle_recommendation(response, analyzer)
+
 if __name__ == "__main__":
-    test_analyzer()
+    #test_analyzer()
+    print(get_music_recommendations())
+
