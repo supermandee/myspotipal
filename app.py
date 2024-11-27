@@ -1,12 +1,16 @@
 from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
+from flask import stream_with_context
+import markdown2
 import requests
 from urllib.parse import urlencode
 import os
 import base64
 from dotenv import load_dotenv
 from flask_caching import Cache
+
 from datetime import timedelta
-from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, gather_spotify_data, summarize_data
+from spotify_client import SpotifyClient
+from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
 import logging
@@ -112,6 +116,14 @@ def update_env_variable(key, value):
         if not updated:
             file.write(f'{key}={value}\n')
 
+# Create a function to get or create SpotifyClient with current token
+def get_spotify_client():
+    access_token = ensure_valid_access_token()
+    if not access_token:
+        return None
+    spotify_client = SpotifyClient(access_token)
+    return SpotifyHelpers(spotify_client)  # Return SpotifyHelpers instance instead
+
 @app.route('/get_refresh_token')
 def get_refresh_token():
     refresh_token = session.get('refresh_token')
@@ -162,16 +174,16 @@ def callback():
         'Authorization': f'Bearer {session["access_token"]}'
     }
     user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
-    session['user_profile'] = user_profile  # Store user profile in session
-
+    session['user_profile'] = user_profile
 
     # Save refresh token to .env
     refresh_token = token_info.get('refresh_token')
     if refresh_token:
         update_env_variable('REFRESH_TOKEN', refresh_token)
 
-    # Gather and cache Spotify data
-    spotify_data = gather_spotify_data(session['access_token'], cache)
+    # Gather and cache Spotify data using the new SpotifyHelpers class
+    spotify_helper = get_spotify_client()
+    spotify_data = spotify_helper.gather_spotify_data(cache)
     
     return redirect(url_for('chat'))
 
@@ -188,16 +200,16 @@ def loggedin():
 
 @app.route('/top-items')
 def top_items():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
-    if not access_token:
+    spotify_helper = get_spotify_client()  
+    if not spotify_helper:
         return redirect(url_for('login'))
-
+    
     time_ranges = ['short_term', 'medium_term', 'long_term']
     top_artists_data = {}
     top_tracks_data = {}
 
     for time_range in time_ranges:
-        artists = get_top_items(access_token, time_range, 'artists')
+        artists = spotify_helper.get_top_items(time_range, 'artists')
         if artists is None:
             return f"Error fetching top artists for {time_range}", 500
         
@@ -213,7 +225,7 @@ def top_items():
             'genres': top_genres
         }
         
-        tracks = get_top_items(access_token, time_range, 'tracks')
+        tracks = spotify_helper.get_top_items(time_range, 'tracks')
         if tracks is None:
             return f"Error fetching top tracks for {time_range}", 500
 
@@ -223,11 +235,11 @@ def top_items():
 
 @app.route('/followed-artists')
 def followed_artists():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
-    if not access_token:
+    spotify_helpers = get_spotify_client()
+    if not spotify_helpers:
         return redirect(url_for('login'))
 
-    artists = get_followed_artists(access_token)
+    artists = spotify_helpers.get_followed_artists()
     if artists is None:
         return "Error fetching followed artists", 500
 
@@ -235,11 +247,11 @@ def followed_artists():
 
 @app.route('/playlists')
 def playlists():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
-    if not access_token:
+    spotify_helpers = get_spotify_client()
+    if not spotify_helpers:
         return redirect(url_for('login'))
 
-    playlists = get_user_playlists(access_token)
+    playlists = spotify_helpers.get_user_playlists()
     if playlists is None:
         return "Error fetching playlists", 500
 
@@ -247,11 +259,11 @@ def playlists():
 
 @app.route('/saved-shows')
 def saved_shows():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
-    if not access_token:
+    spotify_helpers = get_spotify_client()
+    if not spotify_helpers:
         return redirect(url_for('login'))
 
-    shows = get_saved_shows(access_token)
+    shows = spotify_helpers.get_saved_shows()
     if shows is None:
         return "Error fetching saved shows", 500
 
@@ -259,11 +271,11 @@ def saved_shows():
 
 @app.route('/recent-tracks')
 def recent_tracks():
-    access_token = ensure_valid_access_token()  # Ensure access token is valid
-    if not access_token:
+    spotify_helpers = get_spotify_client()
+    if not spotify_helpers:
         return redirect(url_for('login'))
 
-    recent_tracks_data = get_recently_played_tracks(access_token)
+    recent_tracks_data = spotify_helpers.get_recently_played_tracks()
     if recent_tracks_data is None:
         return "Error fetching recently played tracks", 500
 
@@ -276,65 +288,55 @@ def chat():
 # Configure logging at the start of your application
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 @app.route('/ask', methods=['POST'])
 def ask():
-    logging.info("Received a request to /ask.")
     try:
-        # Validate the access token
-        access_token = ensure_valid_access_token()
-        if isinstance(access_token, Response):  # Redirect response
-            logging.warning("Access token invalid. Redirecting to login.")
-            return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
-        
-        if not access_token:
-            logging.info("Access token missing, attempting to refresh.")
-            access_token = refresh_token()
-            if not access_token:
-                logging.error("Failed to refresh access token.")
-                return jsonify({"error": "Could not refresh access token", "redirect": url_for('login')}), 401
+        session_id = session.get('session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            session['session_id'] = session_id
 
-        # Retrieve Spotify data from cache
+        spotify_helpers = get_spotify_client()
+        if not spotify_helpers:
+            return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
+
         spotify_data = cache.get('spotify_data')
         if not spotify_data:
             logging.debug("Spotify data not in cache. Fetching from Spotify API.")
-            spotify_data = gather_spotify_data(access_token, cache)
+            spotify_data = spotify_helpers.gather_spotify_data(cache)
             if not spotify_data:
-                logging.error("Failed to gather Spotify data.")
                 return jsonify({"error": "No Spotify data available"}), 401
 
-        # Get user query
+        access_token = get_access_token()
         query = request.form.get('query')
         if not query:
-            logging.warning("No query provided in the request.")
             return jsonify({"error": "No query provided"}), 400
 
-        # Ensure session ID is available
-        if 'session_id' not in session:
-            session['session_id'] = generate_session_id()
-            logging.info(f"Generated new session ID: {session['session_id']}")
-
-        session_id = session['session_id']
-        logging.debug(f"Session ID: {session_id}")
-        logging.debug(f"Query: {query}")
-
-        # Generate response
         def generate():
             try:
-                logging.info(f"Processing query for session {session_id}: {query}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
+                # Buffer to accumulate markdown content
+                buffer = ""
                 for chunk in response_iterator:
-                    yield chunk
+                    buffer += chunk
+                    # Convert markdown to HTML and yield
+                    html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
+                    yield f"data: {html}\n\n"
             except Exception as e:
                 logging.exception("Error while processing query.")
-                yield f"Error: {str(e)}"
+                yield f"data: Error: {str(e)}\n\n"
 
-        # Return streaming response
-        return Response(generate(), mimetype='text/plain')
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream'
+        )
 
     except Exception as e:
         logging.exception("Unexpected error in /ask route.")
         return jsonify({"error": "Internal Server Error"}), 500
     
+
 @app.route('/cached-data')
 def cached_data():
     spotify_data = cache.get('spotify_data')
