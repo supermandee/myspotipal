@@ -3,7 +3,7 @@ from typing import Dict, Optional, Set
 import logging
 import json
 import math
-from helpers import search_artist, search_item
+from spotify_client import search_artist, search_item
 import requests
 import base64
 from dotenv import load_dotenv

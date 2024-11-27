@@ -40,8 +40,15 @@ class LLMClient:
 
             assistant_message = first_response.choices[0].message
             if assistant_message.tool_calls:
+                print("-"*80)
+                print(assistant_message.tool_calls)
+                print("-"*80)
                 for tool_call in assistant_message.tool_calls:
+                    
                     result = function_handler.execute_function(tool_call)
+                    print("@"*40)
+                    print(result)
+                    print("@"*40)
                     result = result if result is not None else {"error": "No data found"}
                         
                     messages.append({
