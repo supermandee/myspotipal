@@ -9,6 +9,7 @@ from datetime import timedelta
 from helpers import get_top_items, get_followed_artists, get_user_playlists, get_saved_shows, get_recently_played_tracks, gather_spotify_data, summarize_data
 from llm_client import LLMClient
 import uuid
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
@@ -272,42 +273,67 @@ def recent_tracks():
 def chat():
     return render_template('chat.html')
 
+# Configure logging at the start of your application
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 @app.route('/ask', methods=['POST'])
 def ask():
-    access_token = ensure_valid_access_token()
-    if isinstance(access_token, Response):  # New check for redirect response
-        return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
-    
-    if not access_token:
-        # Added second attempt to refresh
-        access_token = refresh_token()
+    logging.info("Received a request to /ask.")
+    try:
+        # Validate the access token
+        access_token = ensure_valid_access_token()
+        if isinstance(access_token, Response):  # Redirect response
+            logging.warning("Access token invalid. Redirecting to login.")
+            return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
+        
         if not access_token:
-            return jsonify({"error": "Could not refresh access token", "redirect": url_for('login')}), 401
+            logging.info("Access token missing, attempting to refresh.")
+            access_token = refresh_token()
+            if not access_token:
+                logging.error("Failed to refresh access token.")
+                return jsonify({"error": "Could not refresh access token", "redirect": url_for('login')}), 401
 
-    spotify_data = cache.get('spotify_data')
-    if not spotify_data:
-        spotify_data = gather_spotify_data(access_token, cache)
+        # Retrieve Spotify data from cache
+        spotify_data = cache.get('spotify_data')
         if not spotify_data:
-            return jsonify({"error": "No Spotify data available"}), 401
+            logging.debug("Spotify data not in cache. Fetching from Spotify API.")
+            spotify_data = gather_spotify_data(access_token, cache)
+            if not spotify_data:
+                logging.error("Failed to gather Spotify data.")
+                return jsonify({"error": "No Spotify data available"}), 401
 
-    query = request.form.get('query')
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
+        # Get user query
+        query = request.form.get('query')
+        if not query:
+            logging.warning("No query provided in the request.")
+            return jsonify({"error": "No query provided"}), 400
 
-    if 'session_id' not in session:
-        session['session_id'] = generate_session_id()
+        # Ensure session ID is available
+        if 'session_id' not in session:
+            session['session_id'] = generate_session_id()
+            logging.info(f"Generated new session ID: {session['session_id']}")
 
-    session_id = session['session_id']
+        session_id = session['session_id']
+        logging.debug(f"Session ID: {session_id}")
+        logging.debug(f"Query: {query}")
 
-    def generate():
-        try:  # Added error handling
-            response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
-            for chunk in response_iterator:
-                yield chunk
-        except Exception as e:
-            yield f"Error: {str(e)}"
+        # Generate response
+        def generate():
+            try:
+                logging.info(f"Processing query for session {session_id}: {query}")
+                response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
+                for chunk in response_iterator:
+                    yield chunk
+            except Exception as e:
+                logging.exception("Error while processing query.")
+                yield f"Error: {str(e)}"
 
-    return Response(generate(), mimetype='text/plain')
+        # Return streaming response
+        return Response(generate(), mimetype='text/plain')
+
+    except Exception as e:
+        logging.exception("Unexpected error in /ask route.")
+        return jsonify({"error": "Internal Server Error"}), 500
     
 @app.route('/cached-data')
 def cached_data():
