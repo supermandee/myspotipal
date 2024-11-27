@@ -54,8 +54,8 @@ SPOTIFY_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "get_saved_shows",
-            "description": "Get user's saved podcasts and audiobooks",
+            "name": "get_saved_podcasts",
+            "description": "Get user's saved podcasts",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -115,8 +115,8 @@ class SpotifyFunctionHandler:
             return self.spotify_helpers.get_followed_artists()
         elif name == "get_user_playlists":
             return self.spotify_helpers.get_user_playlists()
-        elif name == "get_saved_shows":
-            return self.spotify_helpers.get_saved_shows()
+        elif name == "get_saved_podcasts":
+            return self.spotify_helpers.get_saved_podcasts()
         elif name == "get_recently_played_tracks":
             return self.spotify_helpers.get_recently_played_tracks()
         elif name == "search_item":
