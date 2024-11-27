@@ -7,6 +7,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         /* Keep all your existing styles exactly as they are */
+        .bot-message pre {
+            background-color: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .bot-message code {
+            font-family: monospace;
+            font-size: 0.9em;
+            background-color: rgba(175,184,193,0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-align: center; /* Add this line */
+        }
         body {
             margin: 0;
             padding: 0;
@@ -18,7 +39,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            text-align: center;
+            /* Remove the text-align: center; line */
         }
         .container {
             width: 100%;
@@ -27,11 +48,6 @@
             box-sizing: border-box;
             background-color: #d1e8d3;
             border-radius: 10px;
-        }
-        h1 {
-            font-size: 2em;
-            margin-bottom: 20px;
-            font-weight: 700;
         }
         .chat-box {
             border: 1px solid #ccc;
@@ -43,7 +59,8 @@
             border-radius: 5px;
             display: flex;
             flex-direction: column;
-        }
+            text-align: left; /* Add this line */
+        }        
         .chat-bubble {
             padding: 10px;
             border-radius: 10px;
@@ -134,25 +151,25 @@
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
-
+        
             // Disable input and button while processing
             userInput.disabled = true;
             sendButton.disabled = true;
-
+        
             // Display user message
             const userMessage = document.createElement('div');
             userMessage.className = 'chat-bubble user-message';
-            userMessage.textContent = message;
+            userMessage.textContent = message;  // Keep this as textContent for user message
             chatBox.appendChild(userMessage);
-
+        
             // Clear input
             userInput.value = '';
-
+        
             // Create bot message container
             const botMessage = document.createElement('div');
             botMessage.className = 'chat-bubble bot-message';
             chatBox.appendChild(botMessage);
-
+        
             try {
                 const response = await fetch('/ask', {
                     method: 'POST',
@@ -161,34 +178,35 @@
                     },
                     body: `query=${encodeURIComponent(message)}`
                 });
-
+        
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
+        
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let responseText = '';
-
+        
                 while (true) {
                     const {done, value} = await reader.read();
                     if (done) break;
                     
-                    // Decode and append new chunk
+                    // Decode the chunk and clean up the data
                     const chunk = decoder.decode(value);
-                    responseText += chunk;
+                    const cleanChunk = chunk.replace(/data: /g, '').trim();
+                    responseText = cleanChunk;  // Just use the latest chunk
                     
-                    // Update bot message
-                    botMessage.textContent = responseText;
+                    // Update bot message with HTML
+                    botMessage.innerHTML = responseText;
                     
                     // Scroll to bottom
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
-
+        
             } catch (error) {
                 console.error('Error:', error);
                 showError('An error occurred while processing your request.');
-                botMessage.textContent = 'Sorry, there was an error processing your request.';
+                botMessage.innerHTML = 'Sorry, there was an error processing your request.';
             } finally {
                 // Re-enable input and button
                 userInput.disabled = false;
