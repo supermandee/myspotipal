@@ -41,14 +41,27 @@ class SpotifyHelpers:
             'uri': playlist['uri']
         } for playlist in playlists]
 
-    def get_saved_shows(self) -> Optional[List[Dict]]:
-        """Get processed user's saved shows"""
-        shows = self.client.get_saved_shows_raw()
-        return [{
-            'name': show['show'].get('name', 'Unknown Show'),
-            'description': show['show'].get('description', ''),
-            'publisher': show['show'].get('publisher', '')
-        } for show in shows]
+    def get_saved_podcasts(self) -> Optional[List[Dict]]:
+        """Get processed user's saved shows, filtering for podcasts only"""
+        shows = self.client.get_saved_podcasts_raw()
+        processed_shows = []
+        
+        for show in shows:
+            show_data = {
+                'name': show['show'].get('name', 'Unknown Show'),
+                'description': show['show'].get('description', ''),
+                'publisher': show['show'].get('publisher', '')
+            }
+            
+            # Check if it's not an audiobook
+            description = show_data['description'].lower()
+            audiobook_keywords = ["audiobook", "narrator", "narrated by", "read by", "author"]
+            is_audiobook = any(keyword in description for keyword in audiobook_keywords)
+            
+            if not is_audiobook:
+                processed_shows.append(show_data)
+        
+        return processed_shows
 
     def get_recently_played_tracks(self) -> Optional[List[Dict]]:
         """Get processed user's recently played tracks"""

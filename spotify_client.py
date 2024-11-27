@@ -69,7 +69,7 @@ class SpotifyClient:
         """Get raw API response for user's playlists"""
         return self._paginate_request('me/playlists', {'limit': 50}, limit)
 
-    def get_saved_shows_raw(self) -> List[Dict]:
+    def get_saved_podcasts_raw(self) -> List[Dict]:
         """Get raw API response for user's saved shows"""
         return self._paginate_request('me/shows', {'limit': 50})
 
