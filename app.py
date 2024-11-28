@@ -33,7 +33,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
-REDIRECT_URI = 'http://localhost:5001/callback'
+REDIRECT_URI = 'http://3.22.220.27/callback'
 
 # Initialize the LLM client
 llm_client = LLMClient()
