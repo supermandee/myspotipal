@@ -150,8 +150,107 @@ def get_refresh_token():
 def index():
     return render_template('index.html')
 
+
+def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
+    """
+    Comprehensive debugging function for Spotify authentication process
+    Parameters:
+        request_data: Dict containing request information
+        response_data: Dict containing response information
+        stage: String indicating which stage of auth process ('pre-auth', 'callback', 'token-refresh')
+    """
+    logger.debug(f"=== Spotify Auth Debug - {stage} ===")
+    
+    def check_environment():
+        required_vars = {
+            'SPOTIFY_CLIENT_ID': CLIENT_ID,
+            'SPOTIFY_CLIENT_SECRET': CLIENT_SECRET,
+            'FLASK_APP_SECRET_KEY': app.secret_key
+        }
+        
+        missing_vars = []
+        for var_name, var_value in required_vars.items():
+            if not var_value:
+                missing_vars.append(var_name)
+                logger.error(f"Missing environment variable: {var_name}")
+            else:
+                logger.debug(f"{var_name} is properly set")
+        
+        return len(missing_vars) == 0
+
+    def check_session():
+        session_vars = {
+            'access_token': session.get('access_token'),
+            'refresh_token': session.get('refresh_token'),
+            'user_profile': session.get('user_profile')
+        }
+        
+        logger.debug("Session state:")
+        for var_name, var_value in session_vars.items():
+            logger.debug(f"{var_name}: {'Present' if var_value else 'Missing'}")
+        
+        return all(session_vars.values())
+
+    def check_callback_data(data):
+        required_params = ['code']
+        missing_params = []
+        
+        if not data:
+            logger.error("No callback data provided")
+            return False
+            
+        for param in required_params:
+            if param not in data:
+                missing_params.append(param)
+                logger.error(f"Missing callback parameter: {param}")
+        
+        if 'error' in data:
+            logger.error(f"Spotify auth error: {data['error']}")
+            return False
+            
+        return len(missing_params) == 0
+
+    def check_token_response(response_data):
+        required_fields = ['access_token', 'token_type', 'scope']
+        missing_fields = []
+        
+        if not response_data:
+            logger.error("No token response data provided")
+            return False
+            
+        for field in required_fields:
+            if field not in response_data:
+                missing_fields.append(field)
+                logger.error(f"Missing token field: {field}")
+        
+        if 'error' in response_data:
+            logger.error(f"Token error: {response_data['error']}")
+            logger.error(f"Error description: {response_data.get('error_description', 'No description')}")
+            return False
+            
+        return len(missing_fields) == 0
+
+    # Check immediate environment and session state
+    env_ok = check_environment()
+    session_ok = check_session()
+    
+    logger.debug(f"Environment check: {'OK' if env_ok else 'FAILED'}")
+    logger.debug(f"Session check: {'OK' if session_ok else 'FAILED'}")
+    
+    return {
+        'environment_check': env_ok,
+        'session_check': session_ok,
+        'stage': stage
+    }
+
+# Updated routes with debugging
 @app.route('/login')
 def login():
+    debug_result = debug_spotify_auth(stage='pre-auth')
+    if not debug_result['environment_check']:
+        logger.error("Environment check failed")
+        return "Authentication configuration error", 500
+        
     scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played'
     params = {
         'response_type': 'code',
@@ -159,47 +258,76 @@ def login():
         'client_id': CLIENT_ID,
         'scope': scope
     }
+    
+    logger.debug(f"Login Parameters: {params}")
     url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
     return redirect(url)
 
 @app.route('/callback')
 def callback():
+    debug_result = debug_spotify_auth(request.args, stage='callback')
+    
+    if not debug_result['environment_check']:
+        logger.error("Environment check failed")
+        return "Authentication configuration error", 500
+    
+    if 'error' in request.args:
+        logger.error(f"Spotify auth error: {request.args.get('error')}")
+        return f"Authentication error: {request.args.get('error')}", 400
+        
     code = request.args.get('code')
+    if not code:
+        logger.error("No authorization code received")
+        return "No authorization code received", 400
+        
     token_url = 'https://accounts.spotify.com/api/token'
     token_data = {
         'grant_type': 'authorization_code',
         'code': code,
         'redirect_uri': REDIRECT_URI
     }
+    
     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
     client_credentials_b64 = base64.b64encode(client_credentials.encode()).decode()
-
+    
     token_headers = {
         'Authorization': f'Basic {client_credentials_b64}'
     }
-
-    r = requests.post(token_url, data=token_data, headers=token_headers)
-    token_info = r.json()
-    session['access_token'] = token_info['access_token']
-    session['refresh_token'] = token_info['refresh_token']
-
-    # Fetch and store user profile data
-    headers = {
-        'Authorization': f'Bearer {session["access_token"]}'
-    }
-    user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
-    session['user_profile'] = user_profile
-
-    # Save refresh token to .env
-    refresh_token = token_info.get('refresh_token')
-    if refresh_token:
-        update_env_variable('REFRESH_TOKEN', refresh_token)
-
-    # Gather and cache Spotify data using the new SpotifyHelpers class
-    spotify_helper = get_spotify_client()
-    spotify_data = spotify_helper.gather_spotify_data(cache)
     
-    return redirect(url_for('chat'))
+    try:
+        r = requests.post(token_url, data=token_data, headers=token_headers)
+        token_info = r.json()
+        
+        debug_spotify_auth(token_info, stage='token-response')
+        
+        if 'error' in token_info:
+            logger.error(f"Token error: {token_info.get('error')}")
+            return f"Token error: {token_info.get('error')}", 400
+        
+        session['access_token'] = token_info['access_token']
+        session['refresh_token'] = token_info['refresh_token']
+        
+        # Fetch and store user profile data
+        headers = {
+            'Authorization': f'Bearer {session["access_token"]}'
+        }
+        user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
+        session['user_profile'] = user_profile
+        
+        # Save refresh token to .env
+        refresh_token = token_info.get('refresh_token')
+        if refresh_token:
+            update_env_variable('REFRESH_TOKEN', refresh_token)
+        
+        # Gather and cache Spotify data
+        spotify_helper = get_spotify_client()
+        spotify_data = spotify_helper.gather_spotify_data(cache)
+        
+        return redirect(url_for('chat'))
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Token request failed: {str(e)}")
+        return f"Token request failed: {str(e)}", 500
 
 @app.route('/loggedin')
 def loggedin():
