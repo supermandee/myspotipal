@@ -15,6 +15,20 @@ from llm_client import LLMClient
 import uuid
 import logging
 
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
+    format='%(asctime)s [%(levelname)s] in %(module)s: %(message)s',
+    handlers=[
+        logging.FileHandler("/var/log/myspotipal/app.log"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger()
+
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -43,7 +57,7 @@ def refresh_token():
     token_url = 'https://accounts.spotify.com/api/token'
     refresh_token = session.get('refresh_token') or os.getenv('SPOTIFY_REFRESH_TOKEN')
     if not refresh_token:
-        print("No refresh token available")
+        logger.error("No refresh token available")
         return None
 
     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
@@ -62,9 +76,9 @@ def refresh_token():
     token_info = response.json()
 
     if response.status_code != 200:
-        print("Error refreshing token:")
-        print("Error code:", response.status_code)
-        print("Error response:", response.text)
+        logger.error("Error refreshing token:")
+        logger.error("Error code:", response.status_code)
+        logger.error("Error response:", response.text)
         return None
 
     session['access_token'] = token_info['access_token']
