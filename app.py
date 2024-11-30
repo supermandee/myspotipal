@@ -21,6 +21,11 @@ from logging.handlers import RotatingFileHandler
 app_logger = logging.getLogger('app')
 error_logger = logging.getLogger('error')
 
+# Create a filter to ignore connectionpool logs
+class IgnoreConnectionPoolFilter(logging.Filter):
+    def filter(self, record):
+        return not record.name.startswith('urllib3.connectionpool')
+
 # Create handlers with more specific naming
 app_handler = RotatingFileHandler(
     "/var/log/myspotipal/app.log",
@@ -40,18 +45,22 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(process)d] %(modul
 # Apply formatter to all handlers
 for handler in [app_handler, error_handler, console_handler]:
     handler.setFormatter(formatter)
+    handler.addFilter(IgnoreConnectionPoolFilter())
 
 # Configure loggers and handlers
-app_logger.setLevel(logging.INFO)
+app_logger.setLevel(logging.INFO)  # Changed from DEBUG to INFO
 app_logger.addHandler(app_handler)
 
-error_logger.setLevel(logging.ERROR)
+error_logger.setLevel(logging.ERROR)  # Only capture actual errors
 error_logger.addHandler(error_handler)
 error_logger.addHandler(console_handler)
 
 # Prevent propagation
 app_logger.propagate = False
 error_logger.propagate = False
+
+# Optionally, disable urllib3 debug logging completely
+logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Load environment variables from .env file
 load_dotenv()
