@@ -1,5 +1,39 @@
 import requests
+import logging
 from typing import Optional, List, Dict, Any
+from logging.handlers import RotatingFileHandler
+
+
+# Configure logging
+logger = logging.getLogger('spotify_client')
+logger.setLevel(logging.DEBUG)
+logger.propagate = False
+
+# Create log directory if it doesn't exist
+os.makedirs('/var/log/myspotipal', exist_ok=True)
+
+# Create file handler for logging to file
+file_handler = RotatingFileHandler(
+    '/var/log/myspotipal/spotify.log',
+    maxBytes=10485760,  # 10MB
+    backupCount=5
+)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)s] in %(module)s: %(message)s'
+))
+
+# Create console handler for logging to stdout
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)s] in %(module)s: %(message)s'
+))
+
+# Add handlers to logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
 
 class SpotifyClient:
     def __init__(self, access_token: str):
@@ -8,37 +42,43 @@ class SpotifyClient:
         self.headers = {
             'Authorization': f'Bearer {access_token}'
         }
+        logger.info("SpotifyClient initialized")
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """
         Make a GET request to the Spotify API
         """
         url = f'{self.base_url}/{endpoint}'
+        logger.debug(f"Making request to {endpoint} with params: {params}")
+        
         response = requests.get(url, headers=self.headers, params=params)
         
         if response.status_code != 200:
-            print(f"Error making request to {endpoint}:")
-            print("Status Code:", response.status_code)
-            print("Response Text:", response.text)
+            logger.error(f"Error making request to {endpoint}:")
+            logger.error(f"Status Code: {response.status_code}")
+            logger.error(f"Response Text: {response.text}")
             return None
-            
+        
+        logger.debug(f"Successful response from {endpoint}")
         return response.json()
 
     def _paginate_request(self, endpoint: str, params: Optional[Dict] = None, limit: Optional[int] = None) -> List[Dict]:
         """
         Handle pagination for Spotify API requests
         """
+        logger.debug(f"Starting paginated request to {endpoint} with limit {limit}")
         items = []
         url = f'{self.base_url}/{endpoint}'
         
         while url and (limit is None or len(items) < limit):
+            logger.debug(f"Fetching page from {url}")
             response = requests.get(url, headers=self.headers, params=params)
             
             if response.status_code != 200:
-                print(f"Error in pagination for {endpoint}:")
-                print("Status Code:", response.status_code)
+                logger.error(f"Error in pagination for {endpoint}:")
+                logger.error(f"Status Code: {response.status_code}")
                 return items
-
+                
             data = response.json()
             
             # Handle different response structures
@@ -51,34 +91,54 @@ class SpotifyClient:
             url = data.get('next') if 'next' in data else data.get('artists', {}).get('next')
             params = None  # Clear params for subsequent requests
             
+            logger.debug(f"Collected {len(items)} items so far")
+            
             if limit and len(items) >= limit:
                 items = items[:limit]
                 break
-
+        
+        logger.info(f"Completed paginated request to {endpoint}, collected {len(items)} items")
         return items
 
     def get_top_items_raw(self, time_range: str, item_type: str) -> Optional[Dict]:
         """Get raw API response for user's top artists or tracks"""
+        logger.info(f"Getting top {item_type} for time range {time_range}")
         return self._make_request(f'me/top/{item_type}', {'time_range': time_range})
 
     def get_followed_artists_raw(self) -> List[Dict]:
         """Get raw API response for user's followed artists"""
-        return self._paginate_request('me/following', {'type': 'artist', 'limit': 50})
+        logger.info("Getting user's followed artists")
+        artists = self._paginate_request('me/following', {'type': 'artist', 'limit': 50})
+        logger.info(f"Retrieved {len(artists)} followed artists")
+        return artists
 
     def get_user_playlists_raw(self, limit: int = 100) -> List[Dict]:
         """Get raw API response for user's playlists"""
-        return self._paginate_request('me/playlists', {'limit': 50}, limit)
+        logger.info(f"Getting user's playlists (limit: {limit})")
+        playlists = self._paginate_request('me/playlists', {'limit': 50}, limit)
+        logger.info(f"Retrieved {len(playlists)} playlists")
+        return playlists
 
     def get_saved_podcasts_raw(self) -> List[Dict]:
         """Get raw API response for user's saved shows"""
-        return self._paginate_request('me/shows', {'limit': 50})
+        logger.info("Getting user's saved podcasts")
+        podcasts = self._paginate_request('me/shows', {'limit': 50})
+        logger.info(f"Retrieved {len(podcasts)} saved podcasts")
+        return podcasts
 
     def get_recently_played_tracks_raw(self) -> List[Dict]:
         """Get raw API response for user's recently played tracks"""
-        return self._paginate_request('me/player/recently-played', {'limit': 50})
+        logger.info("Getting user's recently played tracks")
+        tracks = self._paginate_request('me/player/recently-played', {'limit': 50})
+        logger.info(f"Retrieved {len(tracks)} recently played tracks")
+        return tracks
 
     def search_item_raw(self, query: str, search_type: str, filters: Optional[Dict] = None) -> Optional[Dict]:
         """Get raw API response for search query"""
+        logger.info(f"Searching for {search_type} with query: {query}")
+        if filters:
+            logger.debug(f"Applied filters: {filters}")
+        
         query_parts = [query]
         if filters:
             query_parts.extend(
@@ -93,4 +153,7 @@ class SpotifyClient:
             'limit': 10
         }
         
-        return self._make_request('search', params)
+        result = self._make_request('search', params)
+        if result:
+            logger.info(f"Search completed successfully")
+        return result
