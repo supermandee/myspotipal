@@ -2,6 +2,7 @@ import requests
 import logging
 from typing import Optional, List, Dict, Any
 from logging.handlers import RotatingFileHandler
+import os
 
 
 # Configure logging
