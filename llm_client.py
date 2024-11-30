@@ -3,8 +3,11 @@ from typing import Dict, Iterator, List, Optional
 import json
 from dotenv import load_dotenv
 import os
-from logger_config import llm_logger as logger
 from ai_tools import SPOTIFY_TOOLS, SpotifyFunctionHandler
+
+from logger_config import setup_logger
+logger = setup_logger(__name__)
+
 
 class LLMClient:
     def __init__(self, model: str = "gpt-4o"):

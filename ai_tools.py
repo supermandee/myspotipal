@@ -2,6 +2,10 @@ import json
 from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
 
+from logger_config import setup_logger
+logger = setup_logger(__name__)
+
+
 SPOTIFY_TOOLS = [
     {
         "type": "function",
