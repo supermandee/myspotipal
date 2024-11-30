@@ -15,18 +15,22 @@ from llm_client import LLMClient
 import uuid
 import logging
 
+# Create a 'logs' directory if it doesn't exist
+if not os.path.exists('logs'):
+    os.makedirs('logs')
 
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,  # Set to DEBUG for more detailed logs
     format='%(asctime)s [%(levelname)s] in %(module)s: %(message)s',
     handlers=[
-        logging.FileHandler("/var/log/myspotipal/app.log"),
-        logging.StreamHandler()
+        logging.FileHandler('logs/app.log'),  # Log to a file in the 'logs' directory
+        logging.StreamHandler()  # Also log to the console
     ]
 )
 
-logger = logging.getLogger()
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 
 # Load environment variables from .env file
@@ -47,7 +51,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
-REDIRECT_URI = 'http://3.22.220.27/callback'
+REDIRECT_URI = 'http://localhost:5001/callback'
 
 # Initialize the LLM client
 llm_client = LLMClient()
@@ -488,4 +492,4 @@ def cached_data():
         return jsonify({"error": "No data cached"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(port=5001)
