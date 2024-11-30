@@ -3,14 +3,15 @@ from typing import Optional, List, Dict, Any
 from logging.handlers import RotatingFileHandler
 from logger_config import spotify_logger as logger
 import logging
-print("Logger name:", logger.name)
-print("Logger effective level:", logger.getEffectiveLevel())
-print("Logger handlers:", [type(h) for h in logger.handlers])
-for handler in logger.handlers:
-    print(f"Handler level: {handler.level}")
-    print(f"Handler formatter: {handler.formatter}")
-    print(f"Handler filters: {handler.filters}")
-
+# Add this debug block right after the imports
+print("=== SPOTIFY LOGGER DEBUG ===")
+print(f"Logger name: {logger.name}")
+print(f"Logger level: {logger.level}")
+print("Handlers:")
+for h in logger.handlers:
+    print(f"- Handler: {type(h).__name__}")
+    print(f"  Level: {h.level}")
+    print(f"  Formatter: {h.formatter._fmt if h.formatter else 'None'}")
 class SpotifyClient:
     def __init__(self, access_token: str):
         self.access_token = access_token
@@ -18,10 +19,9 @@ class SpotifyClient:
         self.headers = {
             'Authorization': f'Bearer {access_token}'
         }
-        logger.info("SpotifyClient initialized")
-        logger.debug("Debug test message from SpotifyClient")  # Test debug
-        logger.info("Info test message from SpotifyClient")    # Test info
-        logger.error("Error test message from SpotifyClient")
+        # Add these test logs
+        logging.warning("DIRECT WARNING TEST")  # This bypasses logger configuration
+        logger.warning("LOGGER WARNING TEST") 
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """
