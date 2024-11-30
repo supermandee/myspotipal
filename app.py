@@ -7,7 +7,6 @@ import os
 import base64
 from dotenv import load_dotenv
 from flask_caching import Cache
-
 from datetime import timedelta
 from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
@@ -15,52 +14,7 @@ from llm_client import LLMClient
 import uuid
 import logging
 from logging.handlers import RotatingFileHandler
-
-
-# Create loggers for different purposes
-app_logger = logging.getLogger('app')
-error_logger = logging.getLogger('error')
-
-# Create a filter to ignore connectionpool logs
-class IgnoreConnectionPoolFilter(logging.Filter):
-    def filter(self, record):
-        return not record.name.startswith('urllib3.connectionpool')
-
-# Create handlers with more specific naming
-app_handler = RotatingFileHandler(
-    "/var/log/myspotipal/app.log",
-    maxBytes=10485760,  # 10MB
-    backupCount=5
-)
-error_handler = RotatingFileHandler(
-    "/var/log/myspotipal/error.log",
-    maxBytes=10485760,
-    backupCount=5
-)
-console_handler = logging.StreamHandler()
-
-# Create formatter with process ID for better debugging
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(process)d] %(module)s: %(message)s')
-
-# Apply formatter to all handlers
-for handler in [app_handler, error_handler, console_handler]:
-    handler.setFormatter(formatter)
-    handler.addFilter(IgnoreConnectionPoolFilter())
-
-# Configure loggers and handlers
-app_logger.setLevel(logging.INFO)  # Changed from DEBUG to INFO
-app_logger.addHandler(app_handler)
-
-error_logger.setLevel(logging.ERROR)  # Only capture actual errors
-error_logger.addHandler(error_handler)
-error_logger.addHandler(console_handler)
-
-# Prevent propagation
-app_logger.propagate = False
-error_logger.propagate = False
-
-# Optionally, disable urllib3 debug logging completely
-logging.getLogger('urllib3').setLevel(logging.WARNING)
+from logger_config import app_logger, error_logger
 
 # Load environment variables from .env file
 load_dotenv()

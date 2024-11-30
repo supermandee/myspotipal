@@ -1,43 +1,10 @@
 from openai import OpenAI
 from typing import Dict, Iterator, List, Optional
-import logging
-from logging.handlers import RotatingFileHandler
 import json
 from dotenv import load_dotenv
 import os
-
+from logger_config import llm_logger as logger
 from ai_tools import SPOTIFY_TOOLS, SpotifyFunctionHandler
-
-# Configure logging
-logger = logging.getLogger('llm_client')
-logger.setLevel(logging.DEBUG)
-# Prevent propagation to parent loggers
-logger.propagate = False  
-
-# Create log directory if it doesn't exist
-os.makedirs('/var/log/myspotipal', exist_ok=True)
-
-# Create file handler for logging to file
-file_handler = RotatingFileHandler(
-    '/var/log/myspotipal/llm.log',
-    maxBytes=10485760,  # 10MB
-    backupCount=5
-)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s [%(levelname)s] in %(module)s: %(message)s'
-))
-
-# Create console handler for logging to stdout
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(logging.Formatter(
-    '%(asctime)s [%(levelname)s] in %(module)s: %(message)s'
-))
-
-# Add handlers to logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
 
 class LLMClient:
     def __init__(self, model: str = "gpt-4o"):
