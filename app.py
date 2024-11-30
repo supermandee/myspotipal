@@ -14,19 +14,54 @@ from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
 import logging
+from logging.handlers import RotatingFileHandler
 
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
-    format='%(asctime)s [%(levelname)s] in %(module)s: %(message)s',
-    handlers=[
-        logging.FileHandler("/var/log/myspotipal/app.log"),
-        logging.StreamHandler()
-    ]
+
+# Create loggers for different purposes
+app_logger = logging.getLogger('app')
+error_logger = logging.getLogger('error')
+llm_logger = logging.getLogger('llm')
+
+# Create handlers
+app_handler = RotatingFileHandler(
+    "/var/log/myspotipal/app.log",
+    maxBytes=10485760,  # 10MB
+    backupCount=5
 )
+error_handler = RotatingFileHandler(
+    "/var/log/myspotipal/error.log",
+    maxBytes=10485760,
+    backupCount=5
+)
+console_handler = logging.StreamHandler()
 
-logger = logging.getLogger()
+# Create formatter
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] in %(module)s: %(message)s')
+
+# Set formatters
+app_handler.setFormatter(formatter)
+error_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Set levels
+app_logger.setLevel(logging.INFO)
+error_logger.setLevel(logging.ERROR)
+console_handler.setLevel(logging.DEBUG)  # Keep console output verbose for development
+
+# Add handlers
+app_logger.addHandler(app_handler)
+error_logger.addHandler(error_handler)
+app_logger.addHandler(console_handler)
+
+# Prevent propagation
+app_logger.propagate = False
+error_logger.propagate = False
+llm_logger.propagate = False
+
+# Then use them in your code like this:
+app_logger.info("Normal application event")  # Goes to app.log and console
+error_logger.error("Application error")      # Goes to error.log only
 
 
 # Load environment variables from .env file
