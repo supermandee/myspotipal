@@ -631,20 +631,9 @@ def cached_data():
 DEV = False
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description="Allow running dev locally")
-    parser.add_argument('--dev', action='store_true', help="Run the script in local dev mode.")
-    
-    args = parser.parse_args()
-    
-    global REDIRECT_URI
-    if args.dev:
-        REDIRECT_URI ="http://localhost:5001/callback"
-        print("Running in local dev mode!")
-        app.run(host='0.0.0.0', debug=True, port=5001)
-    else:
-        REDIRECT_URI = 'http://3.22.220.27/callback'
-        print("Running in default deploy mode!")
-        app.run(host='0.0.0.0')
-
-    
+    global REDIRECT_URI  # Declare it as global before assignment
+    REDIRECT_URI = "http://localhost:5001/callback"
+    print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
+    app.run(host='0.0.0.0', debug=True, port=5001)
+else:
+    REDIRECT_URI = "http://3.22.220.27/callback"  # Set default for production
