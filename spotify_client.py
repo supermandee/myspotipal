@@ -12,6 +12,9 @@ class SpotifyClient:
             'Authorization': f'Bearer {access_token}'
         }
         logger.info("SpotifyClient initialized")
+        logger.debug("Debug test message from SpotifyClient")  # Test debug
+        logger.info("Info test message from SpotifyClient")    # Test info
+        logger.error("Error test message from SpotifyClient")
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """
