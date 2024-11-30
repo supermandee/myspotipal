@@ -1,67 +1,73 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
-import sys
+import sqlite3
+import threading
 
-def setup_logging():
-    # Create log directory
-    log_dir = '/var/log/myspotipal'
-    os.makedirs(log_dir, exist_ok=True)
+class SQLiteHandler(logging.Handler):
+    def __init__(self, db='app_logs.db'):
+        super().__init__()
+        self.db = db
+        self.lock = threading.Lock()
+        self._initialize_database()
 
-    # Configure formatter
-    formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] [%(process)d] %(module)s: %(message)s'
-    )
+    def _initialize_database(self):
+        # Initialize the database schema
+        conn = sqlite3.connect(self.db)
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created REAL,
+                level TEXT,
+                module TEXT,
+                funcName TEXT,
+                lineno INTEGER,
+                message TEXT,
+                args TEXT,
+                exc_info TEXT,
+                processName TEXT,
+                threadName TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
 
-    # Create handlers
-    handlers = {
-        'app': RotatingFileHandler(f'{log_dir}/app.log', maxBytes=10485760, backupCount=5),
-        'spotify': RotatingFileHandler(f'{log_dir}/spotify.log', maxBytes=10485760, backupCount=5),
-        'llm': RotatingFileHandler(f'{log_dir}/llm.log', maxBytes=10485760, backupCount=5),
-        'error': RotatingFileHandler(f'{log_dir}/error.log', maxBytes=10485760, backupCount=5),
-        'console': logging.StreamHandler(sys.stdout)
-    }
+    def emit(self, record):
+        try:
+            # Format the record to ensure message is ready
+            self.format(record)
+            log_entry = (
+                record.created,
+                record.levelname,
+                record.module,
+                record.funcName,
+                record.lineno,
+                record.getMessage(),
+                str(record.args),
+                self.formatException(record.exc_info) if record.exc_info else None,
+                record.processName,
+                record.threadName,
+            )
+            insert_sql = '''
+                INSERT INTO logs (
+                    created, level, module, funcName, lineno, message, args, exc_info, processName, threadName
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            '''
+            # Create a new connection for this thread
+            conn = sqlite3.connect(self.db)
+            with conn:
+                conn.execute(insert_sql, log_entry)
+        except Exception:
+            self.handleError(record)
 
-    # Set levels for handlers
-    handlers['app'].setLevel(logging.INFO)  # Log INFO and above for the app
-    handlers['spotify'].setLevel(logging.INFO)  # Log INFO and above for Spotify
-    handlers['llm'].setLevel(logging.INFO)  # Log INFO and above for LLM
-    handlers['error'].setLevel(logging.ERROR)  # Log only ERROR and above for error log
-    handlers['console'].setLevel(logging.INFO)  # Log INFO and above to console
 
-    # Add formatter to all handlers
-    for handler in handlers.values():
-        handler.setFormatter(formatter)
+def setup_logger(name=None, level=logging.DEBUG):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    # Create loggers
-    loggers = {
-        'app': logging.getLogger('app'),
-        'spotify_client': logging.getLogger('spotify_client'),
-        'llm_client': logging.getLogger('llm_client')
-    }
+    # Prevent adding multiple handlers if the logger is already configured
+    if not logger.handlers:
+        sqlite_handler = SQLiteHandler()
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+        sqlite_handler.setFormatter(formatter)
+        logger.addHandler(sqlite_handler)
 
-    # Configure each logger
-    for name, logger in loggers.items():
-        logger.setLevel(logging.INFO)  # Suppress DEBUG logs
-        logger.propagate = False  # Prevent propagation to root logger
-
-        # Add appropriate handlers
-        if name == 'app':
-            logger.addHandler(handlers['app'])
-        elif name == 'spotify_client':
-            logger.addHandler(handlers['spotify'])
-        elif name == 'llm_client':
-            logger.addHandler(handlers['llm'])
-
-        # Add console handler
-        logger.addHandler(handlers['console'])
-
-    # Configure root logger for global error logging
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.ERROR)  # Log only errors and critical issues
-    root_logger.addHandler(handlers['error'])  # Add error log handler
-
-    # Set urllib3 and other verbose libraries to WARNING level
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-
-    return loggers
+    return logger

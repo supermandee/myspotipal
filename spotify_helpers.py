@@ -1,6 +1,10 @@
 from typing import Dict, List, Optional
 from spotify_client import SpotifyClient
 
+from logger_config import setup_logger
+logger = setup_logger(__name__)
+
+
 class SpotifyHelpers:
     def __init__(self, spotify_client: SpotifyClient):
         self.client = spotify_client
