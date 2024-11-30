@@ -197,10 +197,10 @@ def get_refresh_token():
 @app.errorhandler(Exception)
 def handle_exception(e):
     # Log the exception with traceback
-    logger.error("Unhandled exception occurred", exc_info=True)
+    logger.error(f"Unhandled exception occurred {e}", exc_info=True)
 
     # Optionally, return a custom error response
-    return jsonify({"error": "An internal server error occurred, error logged"}), 500
+    return jsonify({"error": f"An internal server error occurred, error logged {e}"}), 500
 
 
 @app.route('/')
