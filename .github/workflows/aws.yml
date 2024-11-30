@@ -9,6 +9,14 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
+    - name: Create GitHub Deployment
+      uses: chrnorm/deployment-action@v2
+      id: deployment
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        environment: production
+        initial-status: in_progress
+    
     - name: Check Key Format
       run: |
         if [[ "${{ secrets.SSH_KEY }}" == *"BEGIN OPENSSH PRIVATE KEY"* ]]; then
@@ -23,9 +31,18 @@ jobs:
         host: ${{ secrets.HOST }}
         username: ubuntu
         key: ${{ secrets.SSH_KEY }}
-        debug: true  # Enable debug mode
+        debug: true
         script: |
           cd /home/ubuntu  
           git pull origin deploy
           sudo systemctl restart myspotipal.service
           sudo systemctl status myspotipal.service
+          
+    - name: Update Deployment Status
+      if: always()
+      uses: chrnorm/deployment-status@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        environment-url: http://${{ secrets.HOST }}  # Optional: URL to your deployed app
+        state: ${{ job.status == 'success' && 'success' || 'failure' }}
+        deployment-id: ${{ steps.deployment.outputs.deployment_id }}
