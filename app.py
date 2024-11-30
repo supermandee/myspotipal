@@ -23,7 +23,7 @@ app_logger = logging.getLogger('app')
 error_logger = logging.getLogger('error')
 llm_logger = logging.getLogger('llm')
 
-# Create handlers
+# Create handlers with more specific naming
 app_handler = RotatingFileHandler(
     "/var/log/myspotipal/app.log",
     maxBytes=10485760,  # 10MB
@@ -34,34 +34,41 @@ error_handler = RotatingFileHandler(
     maxBytes=10485760,
     backupCount=5
 )
+llm_handler = RotatingFileHandler(
+    "/var/log/myspotipal/llm.log",
+    maxBytes=10485760,
+    backupCount=5
+)
 console_handler = logging.StreamHandler()
 
-# Create formatter
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] in %(module)s: %(message)s')
+# Create formatter with process ID for better debugging
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(process)d] %(module)s: %(message)s')
 
-# Set formatters
-app_handler.setFormatter(formatter)
-error_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
+# Apply formatter to all handlers
+for handler in [app_handler, error_handler, llm_handler, console_handler]:
+    handler.setFormatter(formatter)
 
-# Set levels
+# Set appropriate log levels for production
+app_handler.setLevel(logging.INFO)
+error_handler.setLevel(logging.ERROR)
+llm_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.DEBUG if os.getenv('ENVIRONMENT') == 'development' else logging.INFO)
+
+# Configure loggers with their specific handlers only
 app_logger.setLevel(logging.INFO)
-error_logger.setLevel(logging.ERROR)
-console_handler.setLevel(logging.DEBUG)  # Keep console output verbose for development
-
-# Add handlers
 app_logger.addHandler(app_handler)
-error_logger.addHandler(error_handler)
 app_logger.addHandler(console_handler)
 
-# Prevent propagation
+error_logger.setLevel(logging.ERROR)
+error_logger.addHandler(error_handler)
+
+llm_logger.setLevel(logging.INFO)
+llm_logger.addHandler(llm_handler)
+
+# Prevent propagation to avoid duplicate logging
 app_logger.propagate = False
 error_logger.propagate = False
-llm_logger.propagate = False
-
-# Then use them in your code like this:
-app_logger.info("Normal application event")  # Goes to app.log and console
-error_logger.error("Application error")      # Goes to error.log only
+llm_logger.propagate = False  # Goes to error.log only
 
 
 # Load environment variables from .env file
