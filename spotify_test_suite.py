@@ -1,5 +1,4 @@
 import requests
-import logging
 import base64
 import os
 from typing import Optional, List, Dict, Union

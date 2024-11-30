@@ -305,6 +305,7 @@ def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
 # Updated routes with debugging
 @app.route('/login')
 def login():
+    global REDIRECT_URI
     debug_result = debug_spotify_auth(stage='pre-auth')
     if not debug_result['environment_check']:
         logger.error("Environment check failed")
@@ -324,6 +325,7 @@ def login():
 
 @app.route('/callback')
 def callback():
+    global REDIRECT_URI
     debug_result = debug_spotify_auth(request.args, stage='callback')
     
     # Log environment check results
