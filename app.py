@@ -72,20 +72,81 @@ def refresh_token():
         'Authorization': f'Basic {client_credentials_b64}'
     }
 
-    response = requests.post(token_url, data=token_data, headers=token_headers)
-    token_info = response.json()
+    try:
+        response = requests.post(token_url, data=token_data, headers=token_headers)
+        token_info = response.json()
 
-    if response.status_code != 200:
-        logger.error("Error refreshing token:")
-        logger.error("Error code:", response.status_code)
-        logger.error("Error response:", response.text)
+        if response.status_code != 200:
+            logger.error(f"Error refreshing token: {response.status_code}")
+            logger.error(f"Error response: {response.text}")
+            # Clear invalid session data
+            session.pop('access_token', None)
+            session.pop('refresh_token', None)
+            session.pop('user_profile', None)
+            return None
+
+        session['access_token'] = token_info['access_token']
+        if 'refresh_token' in token_info:
+            session['refresh_token'] = token_info['refresh_token']
+            update_env_variable('REFRESH_TOKEN', token_info['refresh_token'])
+        
+        # Update last refresh time
+        session['token_refresh_time'] = datetime.now().timestamp()
+        return token_info['access_token']
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error refreshing token: {str(e)}")
         return None
 
-    session['access_token'] = token_info['access_token']
-    if 'refresh_token' in token_info:
-        session['refresh_token'] = token_info['refresh_token']
-        update_env_variable('REFRESH_TOKEN', token_info['refresh_token'])
-    return token_info['access_token']
+def check_auth_state():
+    """Check authentication state and return appropriate response"""
+    access_token = session.get('access_token')
+    if not access_token:
+        return {
+            'authenticated': False,
+            'message': 'No active session found',
+            'action': 'login'
+        }
+    
+    # Test if the token is valid
+    try:
+        response = requests.get(
+            'https://api.spotify.com/v1/me',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+        
+        if response.status_code == 401:
+            # Try to refresh the token
+            new_token = refresh_token()
+            if not new_token:
+                return {
+                    'authenticated': False,
+                    'message': 'Session expired. Please log in again',
+                    'action': 'login'
+                }
+            return {
+                'authenticated': True,
+                'message': 'Token refreshed successfully',
+                'action': None
+            }
+        elif response.status_code != 200:
+            return {
+                'authenticated': False,
+                'message': 'Authentication error. Please log in again',
+                'action': 'login'
+            }
+        
+        return {
+            'authenticated': True,
+            'message': 'Authenticated',
+            'action': None
+        }
+    except requests.exceptions.RequestException:
+        return {
+            'authenticated': False,
+            'message': 'Network error. Please try again',
+            'action': 'retry'
+        }
 
 def get_access_token():
     access_token = session.get('access_token')
@@ -425,6 +486,11 @@ def recent_tracks():
 
 @app.route('/chat')
 def chat():
+    auth_state = check_auth_state()
+    if not auth_state['authenticated']:
+        flash(auth_state['message'])
+        if auth_state['action'] == 'login':
+            return redirect(url_for('login'))
     return render_template('chat.html')
 
 # Configure logging at the start of your application
@@ -434,6 +500,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
+        auth_state = check_auth_state()
+        if not auth_state['authenticated']:
+            return jsonify({
+                "error": auth_state['message'],
+                "redirect": url_for('login'),
+                "needsAuth": True
+            }), 401
+
         session_id = session.get('session_id')
         if not session_id:
             session_id = str(uuid.uuid4())
@@ -441,16 +515,24 @@ def ask():
 
         spotify_helpers = get_spotify_client()
         if not spotify_helpers:
-            return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
+            return jsonify({
+                "error": "Unable to connect to Spotify. Please try logging in again",
+                "redirect": url_for('login'),
+                "needsAuth": True
+            }), 401
 
         spotify_data = cache.get('spotify_data')
         if not spotify_data:
-            logging.debug("Spotify data not in cache. Fetching from Spotify API.")
+            logger.debug("Spotify data not in cache. Fetching from Spotify API.")
             spotify_data = spotify_helpers.gather_spotify_data(cache)
             if not spotify_data:
-                return jsonify({"error": "No Spotify data available"}), 401
+                return jsonify({
+                    "error": "Unable to fetch Spotify data. Please try logging in again",
+                    "redirect": url_for('login'),
+                    "needsAuth": True
+                }), 401
 
-        access_token = get_access_token()
+        access_token = session.get('access_token')
         query = request.form.get('query')
         if not query:
             return jsonify({"error": "No query provided"}), 400
@@ -458,16 +540,17 @@ def ask():
         def generate():
             try:
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
-                # Buffer to accumulate markdown content
                 buffer = ""
                 for chunk in response_iterator:
                     buffer += chunk
-                    # Convert markdown to HTML and yield
                     html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
                     yield f"data: {html}\n\n"
-            except Exception as e:
-                logging.exception("Error while processing query.")
-                yield f"data: Error: {str(e)}\n\n"
+            except requests.exceptions.RequestException as e:
+                if "401" in str(e):
+                    yield f"data: Your session has expired. Please <a href='{url_for('login')}'>log in again</a>.\n\n"
+                else:
+                    logger.exception("Error while processing query.")
+                    yield f"data: Error: {str(e)}. Please try again or <a href='{url_for('login')}'>log in again</a> if the problem persists.\n\n"
 
         return Response(
             stream_with_context(generate()),
@@ -475,8 +558,12 @@ def ask():
         )
 
     except Exception as e:
-        logging.exception("Unexpected error in /ask route.")
-        return jsonify({"error": "Internal Server Error"}), 500
+        logger.exception("Unexpected error in /ask route.")
+        return jsonify({
+            "error": "An unexpected error occurred. Please try again or log in again if the problem persists",
+            "redirect": url_for('login'),
+            "needsAuth": True
+        }), 500
     
 
 @app.route('/cached-data')
