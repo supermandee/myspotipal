@@ -3,25 +3,34 @@ from typing import Optional, List, Dict, Any
 from logging.handlers import RotatingFileHandler
 from logger_config import spotify_logger as logger
 import logging
-# Add this debug block right after the imports
-print("=== SPOTIFY LOGGER DEBUG ===")
-print(f"Logger name: {logger.name}")
-print(f"Logger level: {logger.level}")
-print("Handlers:")
-for h in logger.handlers:
-    print(f"- Handler: {type(h).__name__}")
-    print(f"  Level: {h.level}")
-    print(f"  Formatter: {h.formatter._fmt if h.formatter else 'None'}")
+
 class SpotifyClient:
     def __init__(self, access_token: str):
+        # Add debug prints inside __init__ where we know they'll be executed
+        print("=== SPOTIFY LOGGER DEBUG ===")
+        print(f"Logger name: {logger.name}")
+        print(f"Logger level: {logger.level}")
+        print("Handlers:")
+        for h in logger.handlers:
+            print(f"- Handler: {type(h).__name__}")
+            print(f"  Level: {h.level}")
+            print(f"  Formatter: {h.formatter._fmt if h.formatter else 'None'}")
+
+        # Write to a file we know we can access
+        with open('/var/log/myspotipal/debug.log', 'a') as f:
+            f.write('SpotifyClient initialized\n')
+            f.write(f'Logger name: {logger.name}\n')
+            f.write(f'Logger level: {logger.level}\n')
+            for h in logger.handlers:
+                f.write(f'Handler: {type(h).__name__}, Level: {h.level}\n')
+
         self.access_token = access_token
         self.base_url = 'https://api.spotify.com/v1'
         self.headers = {
             'Authorization': f'Bearer {access_token}'
         }
-        # Add these test logs
-        logging.warning("DIRECT WARNING TEST")  # This bypasses logger configuration
-        logger.warning("LOGGER WARNING TEST") 
+        logging.warning("DIRECT WARNING TEST")
+        logger.warning("LOGGER WARNING TEST")
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """
