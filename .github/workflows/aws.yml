@@ -3,6 +3,11 @@ on:
   push:
     branches: [ deploy ]
 
+permissions:
+  deployments: write
+  statuses: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -43,6 +48,6 @@ jobs:
       uses: chrnorm/deployment-status@v2
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        environment-url: http://${{ secrets.HOST }}  # Optional: URL to your deployed app
+        environment-url: http://${{ secrets.HOST }}
         state: ${{ job.status == 'success' && 'success' || 'failure' }}
         deployment-id: ${{ steps.deployment.outputs.deployment_id }}
