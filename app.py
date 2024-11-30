@@ -192,6 +192,16 @@ def get_refresh_token():
         return f"Refresh Token: {refresh_token}", 200
     else:
         return "No refresh token found", 400
+    
+# Catch all 500 errors
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the exception with traceback
+    logger.error("Unhandled exception occurred", exc_info=True)
+
+    # Optionally, return a custom error response
+    return jsonify({"error": "An internal server error occurred, error logged"}), 500
+
 
 @app.route('/')
 def index():
@@ -290,6 +300,7 @@ def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
         'session_check': session_ok,
         'stage': stage
     }
+
 
 # Updated routes with debugging
 @app.route('/login')
