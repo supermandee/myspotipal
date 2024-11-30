@@ -2,7 +2,14 @@ import requests
 from typing import Optional, List, Dict, Any
 from logging.handlers import RotatingFileHandler
 from logger_config import spotify_logger as logger
-
+import logging
+print("Logger name:", logger.name)
+print("Logger effective level:", logger.getEffectiveLevel())
+print("Logger handlers:", [type(h) for h in logger.handlers])
+for handler in logger.handlers:
+    print(f"Handler level: {handler.level}")
+    print(f"Handler formatter: {handler.formatter}")
+    print(f"Handler filters: {handler.filters}")
 
 class SpotifyClient:
     def __init__(self, access_token: str):
