@@ -12,7 +12,7 @@ from ai_tools import SPOTIFY_TOOLS, SpotifyFunctionHandler
 logger = logging.getLogger('llm_client')
 logger.setLevel(logging.DEBUG)
 # Prevent propagation to parent loggers
-logger.propagate = False  # Add this line
+logger.propagate = False  
 
 # Create log directory if it doesn't exist
 os.makedirs('/var/log/myspotipal', exist_ok=True)
