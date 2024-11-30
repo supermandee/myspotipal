@@ -1,19 +1,29 @@
 name: Deploy to EC2
-
 on:
   push:
-    branches: [ deploy ]  # or whatever branch you want to deploy from
+    branches: [ deploy ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
+    
+    - name: Check Key Format
+      run: |
+        if [[ "${{ secrets.SSH_KEY }}" == *"BEGIN OPENSSH PRIVATE KEY"* ]]; then
+          echo "Key appears to be in correct format"
+        else
+          echo "Key format might be incorrect"
+        fi
+    
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.HOST }}
         username: ubuntu
         key: ${{ secrets.SSH_KEY }}
+        debug: true  # Enable debug mode
         script: |
           cd /home/ubuntu  
           git pull origin deploy
