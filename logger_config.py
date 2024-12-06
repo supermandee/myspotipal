@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 import threading
+import traceback 
 
 class SQLiteHandler(logging.Handler):
     def __init__(self, db='app_logs.db'):
@@ -29,6 +30,11 @@ class SQLiteHandler(logging.Handler):
         ''')
         conn.commit()
         conn.close()
+    
+    def formatException(self, exc_info):
+        if exc_info:
+            return ''.join(traceback.format_exception(*exc_info))
+        return ''
 
     def emit(self, record):
         try:

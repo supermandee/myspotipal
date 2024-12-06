@@ -23,7 +23,7 @@ load_dotenv()
 def generate_session_id():
     return str(uuid.uuid4())
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv('FLASK_APP_SECRET_KEY')
 
 # Configure Flask-Caching
