@@ -65,18 +65,23 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 40px;
-            height: 40px;
+            width: 70px;
+            height: 70px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <img src="{{ url_for('static', filename='images/spotify_snowflake.gif') }}" alt="Spotify Snowflake" class="spotify-logo">
+        <a href="https://www.spotify.com" target="_blank">
+            <img src="{{ url_for('static', filename='images/spotify_snowflake.gif') }}" 
+                 alt="Spotify Snowflake" 
+                 class="spotify-logo">
+        </a>
         <h1>Welcome to MySpotiPal</h1>
         <p>Your personal Spotify assistant that knows your music taste inside out. Ready to create personalized playlists, answer your music-related queries, and much more!</p>
         <a href="{{ url_for('login') }}" class="login-button">Log in with Spotify</a>
-        <img src="{{ url_for('static', filename='images/chatbot.png') }}" alt="Chatbot Image" class="chatbot-image">
+        <img src="{{ url_for('static', filename='images/een.gif') }}" alt="Chatbot Image" class="chatbot-image">
     </div>
 </body>
 </html>
