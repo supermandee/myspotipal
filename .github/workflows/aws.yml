@@ -20,4 +20,5 @@ jobs:
           cd /home/ubuntu  
           git pull origin deploy
           sudo systemctl restart myspotipal.service
+          sudo systemctl restart nginx
           sudo systemctl status myspotipal.service
