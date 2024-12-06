@@ -17,7 +17,7 @@ jobs:
         username: ubuntu
         key: ${{ secrets.SSH_KEY }}
         script: |
-          cd /home/ubuntu  
+          cd /home/ubuntu/myspotipal
           git pull origin deploy
           sudo systemctl restart myspotipal.service
           sudo systemctl restart nginx
