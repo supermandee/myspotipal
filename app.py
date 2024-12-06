@@ -12,6 +12,7 @@ from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
+import sys
 
 from logger_config import setup_logger
 logger = setup_logger(__name__)
@@ -628,12 +629,22 @@ def cached_data():
     else:
         return jsonify({"error": "No data cached"}), 500
 
-DEV = False
+# DEV = False
+
+# if __name__ == '__main__':
+#     global REDIRECT_URI  # Declare it as global before assignment
+#     REDIRECT_URI = "http://localhost:5001/callback"
+#     print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
+#     app.run(host='0.0.0.0', debug=True, port=5001)
+# else:
+#     REDIRECT_URI = "http://3.22.220.27/callback"  # Set default for production
 
 if __name__ == '__main__':
-    global REDIRECT_URI  # Declare it as global before assignment
-    REDIRECT_URI = "http://localhost:5001/callback"
-    print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
-    app.run(host='0.0.0.0', debug=True, port=5001)
-else:
-    REDIRECT_URI = "http://3.22.220.27/callback"  # Set default for production
+    if '--dev' in sys.argv:
+        REDIRECT_URI = "http://localhost:5001/callback"
+        print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
+        app.run(host='0.0.0.0', debug=True, port=5001)
+    else:
+        REDIRECT_URI = "http://3.22.220.27/callback"
+        print(f"Running in production mode! REDIRECT_URI set to {REDIRECT_URI}")
+        app.run(host='0.0.0.0', debug=False, port=5001)
