@@ -17,11 +17,16 @@ import sys
 from logger_config import setup_logger
 logger = setup_logger(__name__)
 
+
+# Define REDIRECT_URI at the top-level, no globals, no if/else blocks here
+REDIRECT_URI = "http://localhost:5001/callback" if '--dev' in sys.argv else "https://myspotipal.com/callback"
+
 # Load environment variables from .env file
 load_dotenv()
 
 def generate_session_id():
     return str(uuid.uuid4())
+
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv('FLASK_APP_SECRET_KEY')
@@ -632,19 +637,16 @@ def cached_data():
 # DEV = False
 
 # if __name__ == '__main__':
-#     global REDIRECT_URI  # Declare it as global before assignment
+#     #global REDIRECT_URI  # Declare it as global before assignment
 #     REDIRECT_URI = "http://localhost:5001/callback"
 #     print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
 #     app.run(host='0.0.0.0', debug=True, port=5001)
 # else:
-#     REDIRECT_URI = "http://3.22.220.27/callback"  # Set default for production
+#     REDIRECT_URI = "https://myspotipal.com/callback"  # Set default for production
 
 if __name__ == '__main__':
+    # Run depending on dev or production mode
     if '--dev' in sys.argv:
-        REDIRECT_URI = "http://localhost:5001/callback"
-        print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
-        app.run(host='0.0.0.0', debug=True, port=5001)
+        app.run(host='0.0.0.0', port=5001, debug=True)
     else:
-        REDIRECT_URI = "https://myspotipal.com/callback"
-        print(f"Running in production mode! REDIRECT_URI set to {REDIRECT_URI}")
-        app.run(host='0.0.0.0', debug=False, port=80)
+        app.run(host='0.0.0.0', port=80, debug=False)
