@@ -647,4 +647,4 @@ if __name__ == '__main__':
     else:
         REDIRECT_URI = "https://myspotipal.com/callback"
         print(f"Running in production mode! REDIRECT_URI set to {REDIRECT_URI}")
-        app.run(host='0.0.0.0', debug=False, port=5001)
+        app.run(host='0.0.0.0', debug=False, port=80)
