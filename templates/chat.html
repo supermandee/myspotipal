@@ -201,7 +201,8 @@
                             if (message.startsWith('data: ')) {
                                 const cleanChunk = message.replace('data: ', '').trim();
                                 if (cleanChunk) {
-                                    botMessage.innerHTML = cleanChunk;
+                                    // Append the new chunk instead of overwriting
+                                    botMessage.innerHTML += cleanChunk;
                                     chatBox.scrollTop = chatBox.scrollHeight;
                                 }
                             }
