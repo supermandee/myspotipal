@@ -600,9 +600,10 @@ def ask():
             try:
                 logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
+                buffer = ""
                 for chunk in response_iterator:
-                    # Convert only the new chunk to HTML, not the accumulated buffer
-                    html = markdown2.markdown(chunk, extras=['fenced-code-blocks', 'tables'])
+                    buffer += chunk
+                    html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
                     yield f"data: {html}\n\n"
             except requests.exceptions.RequestException as e:
                 if "401" in str(e):
@@ -633,9 +634,19 @@ def cached_data():
     else:
         return jsonify({"error": "No data cached"}), 500
 
+# DEV = False
+
+# if __name__ == '__main__':
+#     #global REDIRECT_URI  # Declare it as global before assignment
+#     REDIRECT_URI = "http://localhost:5001/callback"
+#     print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
+#     app.run(host='0.0.0.0', debug=True, port=5001)
+# else:
+#     REDIRECT_URI = "https://myspotipal.com/callback"  # Set default for production
+
 if __name__ == '__main__':
     # Run depending on dev or production mode
     if '--dev' in sys.argv:
         app.run(host='0.0.0.0', port=5001, debug=True)
     else:
-        app.run(host='0.0.0.0', port=8000, debug=False)
+        app.run(host='0.0.0.0', port=80, debug=False)
