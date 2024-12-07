@@ -189,37 +189,28 @@
                 const decoder = new TextDecoder();
                 let responseText = '';
         
-                while (true) {
-    const {done, value} = await reader.read();
-    if (done) {
-        console.log("Stream done");
-        break;
-    }
-    
-    // Decode the chunk and clean up the data
-    const chunk = decoder.decode(value, {stream: true});
-    console.log("Raw chunk:", chunk); // Debug log
-    
-    const messages = chunk.split('\n\n');
-    for (const message of messages) {
-        if (message.startsWith('data: ')) {
-            const cleanChunk = message.replace('data: ', '').trim();
-            console.log("Clean chunk:", cleanChunk); // Debug log
-            
-            if (cleanChunk && cleanChunk !== '[DONE]') {
-                try {
-                    // Try parsing the chunk as JSON if it's JSON data
-                    const jsonData = JSON.parse(cleanChunk);
-                    botMessage.innerHTML = jsonData.content || jsonData.message || jsonData;
-                } catch (e) {
-                    // If it's not JSON, use it directly
-                    botMessage.innerHTML = cleanChunk;
+                let fullMessage = '';
+                let previousChunk = '';  // Track last chunk to prevent duplicates
+
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, {stream: true});
+                const messages = chunk.split('\n\n');
+                
+                for (const message of messages) {
+                    if (message.startsWith('data: ')) {
+                        const cleanChunk = message.replace('data: ', '').trim();
+                        // Only update if this chunk is actually new content
+                        if (cleanChunk && cleanChunk !== previousChunk) {
+                            botMessage.innerHTML = cleanChunk;
+                            previousChunk = cleanChunk;
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    }
                 }
-                chatBox.scrollTop = chatBox.scrollHeight;
             }
-        }
-    }
-}
                             
             } catch (error) {
                 console.error('Error:', error);
