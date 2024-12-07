@@ -190,24 +190,23 @@
                 let responseText = '';
         
                 while (true) {
-                        const {done, value} = await reader.read();
-                        if (done) break;
-                        
-                        // Decode the chunk and clean up the data
-                        const chunk = decoder.decode(value);
-                        const messages = chunk.split('\n\n');
-                        
-                        for (const message of messages) {
-                            if (message.startsWith('data: ')) {
-                                const cleanChunk = message.replace('data: ', '').trim();
-                                if (cleanChunk) {
-                                    // Append the new chunk instead of overwriting
-                                    botMessage.innerHTML += cleanChunk;
-                                    chatBox.scrollTop = chatBox.scrollHeight;
-                                }
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    // Decode the chunk and clean up the data
+                    const chunk = decoder.decode(value, {stream: true}); // Added stream option
+                    const messages = chunk.split('\n\n');
+                    
+                    for (const message of messages) {
+                        if (message.startsWith('data: ')) {
+                            const cleanChunk = message.replace('data: ', '').trim();
+                            if (cleanChunk !== '[DONE]' && cleanChunk) {  // Added check for [DONE]
+                                botMessage.innerHTML = cleanChunk;
+                                chatBox.scrollTop = chatBox.scrollHeight;
                             }
                         }
                     }
+                }
                             
             } catch (error) {
                 console.error('Error:', error);
