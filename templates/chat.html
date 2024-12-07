@@ -186,8 +186,7 @@
                 }
         
                 const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let previousLength = 0;  // Track the length of previous content
+const decoder = new TextDecoder();
 
 while (true) {
     const {done, value} = await reader.read();
@@ -199,10 +198,8 @@ while (true) {
     for (const message of messages) {
         if (message.startsWith('data: ')) {
             const cleanChunk = message.replace('data: ', '').trim();
-            // Update if the chunk has content and is either longer or different
-            if (cleanChunk && (cleanChunk.length > previousLength || cleanChunk.length < previousLength)) {
+            if (cleanChunk) {
                 botMessage.innerHTML = cleanChunk;
-                previousLength = cleanChunk.length;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
