@@ -187,6 +187,7 @@
         
                 const reader = response.body.getReader();
 const decoder = new TextDecoder();
+let accumulatedMessage = ''; // Add this to accumulate the message
 
 while (true) {
     const {done, value} = await reader.read();
@@ -199,7 +200,10 @@ while (true) {
         if (message.startsWith('data: ')) {
             const cleanChunk = message.replace('data: ', '').trim();
             if (cleanChunk) {
-                botMessage.innerHTML = cleanChunk;
+                // Accumulate the message instead of replacing
+                accumulatedMessage += cleanChunk;
+                // Update the UI with the accumulated message
+                botMessage.innerHTML = accumulatedMessage;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
