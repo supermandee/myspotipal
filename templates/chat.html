@@ -190,21 +190,24 @@
                 let responseText = '';
         
                 while (true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-                    
-                    // Decode the chunk and clean up the data
-                    const chunk = decoder.decode(value);
-                    const cleanChunk = chunk.replace(/data: /g, '').trim();
-                    responseText = cleanChunk;  // Just use the latest chunk
-                    
-                    // Update bot message with HTML
-                    botMessage.innerHTML = responseText;
-                    
-                    // Scroll to bottom
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }
-        
+                        const {done, value} = await reader.read();
+                        if (done) break;
+                        
+                        // Decode the chunk and clean up the data
+                        const chunk = decoder.decode(value);
+                        const messages = chunk.split('\n\n');
+                        
+                        for (const message of messages) {
+                            if (message.startsWith('data: ')) {
+                                const cleanChunk = message.replace('data: ', '').trim();
+                                if (cleanChunk) {
+                                    botMessage.innerHTML = cleanChunk;
+                                    chatBox.scrollTop = chatBox.scrollHeight;
+                                }
+                            }
+                        }
+                    }
+                            
             } catch (error) {
                 console.error('Error:', error);
                 showError('An error occurred while processing your request.');
