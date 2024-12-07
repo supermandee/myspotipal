@@ -645,6 +645,6 @@ if __name__ == '__main__':
         print(f"Running in local dev mode! REDIRECT_URI set to {REDIRECT_URI}")
         app.run(host='0.0.0.0', debug=True, port=5001)
     else:
-        REDIRECT_URI = "http://3.22.220.27/callback"
+        REDIRECT_URI = "https://myspotipal.com/callback"
         print(f"Running in production mode! REDIRECT_URI set to {REDIRECT_URI}")
         app.run(host='0.0.0.0', debug=False, port=5001)
