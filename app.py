@@ -601,7 +601,7 @@ def ask():
                 logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
                 buffer = ""
-                
+
                 for chunk in response_iterator:
                     buffer += chunk
                     html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])

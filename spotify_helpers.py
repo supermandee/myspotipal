@@ -43,7 +43,7 @@ class SpotifyHelpers:
             'id': playlist['id'],
             'name': playlist['name'],
             'uri': playlist['uri']
-        } for playlist in playlists]
+        } for playlist in playlists if playlist is not None]
 
     def get_saved_podcasts(self) -> Optional[List[Dict]]:
         """Get processed user's saved shows, filtering for podcasts only"""
