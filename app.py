@@ -601,6 +601,8 @@ def ask():
                 logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
                 buffer = ""
+                 #Added: Initial empty message
+                yield "data: {}\n\n"
                 for chunk in response_iterator:
                     buffer += chunk
                     html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
@@ -614,9 +616,13 @@ def ask():
                     yield f"data: Error: {str(e)}. Please try again or <a href='{url_for('login')}'>log in again</a> if the problem persists.\n\n"
 
         return Response(
-            stream_with_context(generate()),
-            mimetype='text/event-stream'
-        )
+                stream_with_context(generate()),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no'
+                }
+            )
 
     except Exception as e:
         logger.error("Unexpected error occurred in /ask route.", exc_info=True)
