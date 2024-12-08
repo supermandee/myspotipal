@@ -1,6 +1,5 @@
 from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
 from flask import stream_with_context
-import markdown2
 import requests
 from urllib.parse import urlencode
 import os
@@ -600,12 +599,9 @@ def ask():
             try:
                 logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
-                buffer = ""
 
                 for chunk in response_iterator:
-                    buffer += chunk
-                    html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
-                    yield html
+                    yield chunk
             except requests.exceptions.RequestException as e:
                 if "401" in str(e):
                     logger.warning("Session expired while processing /ask query.")

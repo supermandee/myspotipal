@@ -29,7 +29,6 @@ async function sendMessage() {
     chatBox.appendChild(botMessage);
 
     let lastContent = '';  // Track last content to avoid duplicates
-    let fullMessage = ''; // Track the complete message
 
     try {
         const response = await fetch('/ask', {
@@ -55,8 +54,8 @@ async function sendMessage() {
             }
 
             const chunk = decoder.decode(value, {stream: true});
-            console.log("Raw chunk:", chunk);
-
+            console.log("Raw chunk:", chunk);  // Keep for debugging
+            //var message = chunk.trim();
             if (chunk.startsWith('data: ')) {
                 const cleanChunk = chunk.replace('data: ', '').trim();
                 if (cleanChunk && cleanChunk !== '[DONE]') {
@@ -64,18 +63,14 @@ async function sendMessage() {
                         // First try to parse as JSON
                         const jsonData = JSON.parse(cleanChunk);
                         const content = jsonData.content || jsonData.chunk || jsonData;
-                        
-                        // Only update if this is new content
-                        if (content && !fullMessage.includes(content)) {
-                            fullMessage += content;
-                            botMessage.innerHTML = fullMessage;
+                        if (content !== lastContent) {  // Only update if content changed
+                            botMessage.innerHTML = content;
                             lastContent = content;
                         }
                     } catch (e) {
                         // Not JSON, handle as HTML from markdown
-                        if (cleanChunk && !fullMessage.includes(cleanChunk)) {
-                            fullMessage += cleanChunk;
-                            botMessage.innerHTML = fullMessage;
+                        if (cleanChunk !== lastContent) {  // Only update if content changed
+                            botMessage.innerHTML = cleanChunk;
                             lastContent = cleanChunk;
                         }
                     }
