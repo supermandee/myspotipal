@@ -604,9 +604,8 @@ def ask():
 
                 for chunk in response_iterator:
                     buffer += chunk
-                    #html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
-                    #yield f"data: {html}\n\n"
-                    yield f"data: {buffer}"
+                    html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
+                    yield f"data: {html}\n\n"
             except requests.exceptions.RequestException as e:
                 if "401" in str(e):
                     logger.warning("Session expired while processing /ask query.")
