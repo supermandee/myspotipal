@@ -58,22 +58,10 @@ async function sendMessage() {
             console.log("Raw chunk:", chunk);
             var cleanChunk = chunk;
             if (cleanChunk && cleanChunk !== '[DONE]') {
-                try {
-                    const jsonData = JSON.parse(cleanChunk);
-                    const content = jsonData.content || jsonData.chunk || jsonData;
-                    if (content !== lastContent) {
-                        fullMessage += content;
-                        //botMessage.innerHTML = fullMessage;
-                        botMessage.innerHTML = marked.parse(fullMessage);
-                        lastContent = content;
-                    }
-                } catch (e) {
-                    console.error('Error:', e);
-                    if (cleanChunk !== lastContent) {
-                        fullMessage += cleanChunk;
-                        botMessage.innerHTML = fullMessage;
-                        lastContent = cleanChunk;
-                    }
+                if (cleanChunk !== lastContent) {
+                    fullMessage += cleanChunk;
+                    botMessage.innerHTML = marked.parse(fullMessage);
+                    lastContent = cleanChunk;
                 }
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
