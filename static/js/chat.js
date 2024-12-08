@@ -17,7 +17,7 @@ async function sendMessage() {
     // Display user message
     const userMessage = document.createElement('div');
     userMessage.className = 'chat-bubble user-message';
-    userMessage.textContent = message;  // Keep this as textContent for user message
+    userMessage.textContent = message;
     chatBox.appendChild(userMessage);
 
     // Clear input
@@ -43,40 +43,41 @@ async function sendMessage() {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let responseText = '';
+        let messageContent = ''; // Store the accumulated message content
 
         while (true) {
-const {done, value} = await reader.read();
-if (done) {
-console.log("Stream done");
-break;
-}
+            const {done, value} = await reader.read();
+            if (done) {
+                console.log("Stream done");
+                break;
+            }
 
-// Decode the chunk and clean up the data
-const chunk = decoder.decode(value, {stream: true});
-console.log("Raw chunk:", chunk); // Debug log
+            // Decode the chunk
+            const chunk = decoder.decode(value, {stream: true});
+            console.log("Raw chunk:", chunk);
 
-const messages = chunk.split('\n\n');
-for (const message of messages) {
-if (message.startsWith('data: ')) {
-    const cleanChunk = message.replace('data: ', '').trim();
-    console.log("Clean chunk:", cleanChunk); // Debug log
-    
-    if (cleanChunk && cleanChunk !== '[DONE]') {
-        try {
-            // Try parsing the chunk as JSON if it's JSON data
-            const jsonData = JSON.parse(cleanChunk);
-            botMessage.innerHTML = jsonData.content || jsonData.message || jsonData;
-        } catch (e) {
-            // If it's not JSON, use it directly
-            botMessage.innerHTML = cleanChunk;
+            // Split into individual SSE messages
+            const messages = chunk.split('\n\n');
+            for (const message of messages) {
+                if (message.startsWith('data: ')) {
+                    // Extract the clean chunk of content
+                    const cleanChunk = message.replace('data: ', '').trim();
+                    if (cleanChunk && cleanChunk !== '[DONE]') {
+                        try {
+                            // Try parsing as JSON if it's JSON data
+                            const jsonData = JSON.parse(cleanChunk);
+                            messageContent = jsonData.content || jsonData.message || jsonData;
+                        } catch (e) {
+                            // If it's not JSON, use it directly
+                            messageContent = cleanChunk;
+                        }
+                        // Update the bot message with accumulated content
+                        botMessage.innerHTML = messageContent;
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }
+            }
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-}
-}
-}
-                    
     } catch (error) {
         console.error('Error:', error);
         showError('An error occurred while processing your request.');
