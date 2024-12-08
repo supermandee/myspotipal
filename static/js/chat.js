@@ -55,29 +55,26 @@ async function sendMessage() {
 
             const chunk = decoder.decode(value, {stream: true});
             console.log("Raw chunk:", chunk);  // Keep for debugging
-
-            const messages = chunk.split('\n\n');
-            for (const message of messages) {
-                if (message.startsWith('data: ')) {
-                    const cleanChunk = message.replace('data: ', '').trim();
-                    if (cleanChunk && cleanChunk !== '[DONE]') {
-                        try {
-                            // First try to parse as JSON
-                            const jsonData = JSON.parse(cleanChunk);
-                            const content = jsonData.content || jsonData.message || jsonData;
-                            if (content !== lastContent) {  // Only update if content changed
-                                botMessage.innerHTML = content;
-                                lastContent = content;
-                            }
-                        } catch (e) {
-                            // Not JSON, handle as HTML from markdown
-                            if (cleanChunk !== lastContent) {  // Only update if content changed
-                                botMessage.innerHTML = cleanChunk;
-                                lastContent = cleanChunk;
-                            }
+            message = chunk.trim();
+            if (message.startsWith('data: ')) {
+                const cleanChunk = message.replace('data: ', '').trim();
+                if (cleanChunk && cleanChunk !== '[DONE]') {
+                    try {
+                        // First try to parse as JSON
+                        const jsonData = JSON.parse(cleanChunk);
+                        const content = jsonData.content || jsonData.message || jsonData;
+                        if (content !== lastContent) {  // Only update if content changed
+                            botMessage.innerHTML = content;
+                            lastContent = content;
                         }
-                        chatBox.scrollTop = chatBox.scrollHeight;
+                    } catch (e) {
+                        // Not JSON, handle as HTML from markdown
+                        if (cleanChunk !== lastContent) {  // Only update if content changed
+                            botMessage.innerHTML = cleanChunk;
+                            lastContent = cleanChunk;
+                        }
                     }
+                    chatBox.scrollTop = chatBox.scrollHeight;
                 }
             }
         }
