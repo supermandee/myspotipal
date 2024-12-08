@@ -4,22 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MySpotiPal</title>
+    
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}" sizes="48x48">
+    
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <!-- Desktop stylesheet (for devices 768px and above) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" media="screen and (min-width: 768px)">
+    
+    <!-- Mobile stylesheet (for devices below 768px) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" media="screen and (max-width: 767px)">
 </head>
 <body>
     <div class="container">
         <a href="https://www.spotify.com" target="_blank">
-            <img src="{{ url_for('static', filename='images/spotify_snowflake.gif') }}" 
-                 alt="Spotify Snowflake" 
+            <img src="{{ url_for('static', filename='images/spotify_snowflake.gif') }}"
+                 alt="Spotify Snowflake"
                  class="spotify-logo">
         </a>
+        
         <h1>Welcome to MySpotiPal</h1>
+        
         <p>Your personal Spotify assistant that knows your music taste inside out. Ready to create personalized playlists, answer your music-related queries, and much more!</p>
+        
         <a href="{{ url_for('login') }}" class="login-button">Log in with Spotify</a>
-        <img src="{{ url_for('static', filename='images/een.gif') }}" alt="Chatbot Image" class="chatbot-image">
+        
+        <img src="{{ url_for('static', filename='images/een.gif') }}" 
+             alt="Chatbot Image" 
+             class="chatbot-image">
     </div>
 </body>
 </html>

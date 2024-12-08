@@ -81,39 +81,45 @@ p {
         height: 100vh;
         padding: 20px;
         border-radius: 0;
-        margin: 0;
+        margin: 20;
         box-sizing: border-box;
+        display: flex;              /* Add this */
+        flex-direction: column;     /* Add this */
+        justify-content: center;    /* Controls vertical alignment */
     }
 
     h1 {
         font-size: 2em;
-        margin: 15px auto;
+        margin: 30px auto;
     }
 
     p {
         width: 85%;
-        margin: 10px auto 30px auto;
+        margin: 10px auto 10px auto;
         line-height: 1.4;
     }
-
     .chatbot-image {
-        width: 120px;
+        width: min(230px, 70vw); /* Will be 70% of viewport width, but never larger than 200px */
         position: fixed;
         bottom: 20px;
-        right: 20px;
+        right: 30px;
         z-index: 1;
+        min-width: 150px; /* Ensures it doesn't get too small */
     }
 
+    
     .login-button {
-        margin-bottom: 140px;
+        margin-bottom: 30vh; /* Using viewport height instead of fixed pixels */
         position: relative;
         z-index: 2;
     }
 
     .spotify-logo {
-        width: 50px;
-        height: 50px;
+        width: min(80px, 40vw); /* Will be 40% of viewport width, but never larger than 70px */
+        height: min(80px, 40vw);
         top: 15px;
         right: 15px;
+        min-width: 50px; /* Ensures it doesn't get too small */
+        min-height: 50px;
     }
 }
