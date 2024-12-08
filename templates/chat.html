@@ -186,39 +186,35 @@
                 }
         
                 const reader = response.body.getReader();
-const decoder = new TextDecoder();
-let responseText = '';
-let accumulatedMessage = ''; // Add this to accumulate the message
-
-while (true) {
+                const decoder = new TextDecoder();
+                let responseText = '';
+        
+                while (true) {
     const {done, value} = await reader.read();
     if (done) {
         console.log("Stream done");
         break;
     }
-
-    // Decode the chunk
+    
+    // Decode the chunk and clean up the data
     const chunk = decoder.decode(value, {stream: true});
     console.log("Raw chunk:", chunk); // Debug log
     
-    const messages = chunk.match(/data:[\s\S]+/g) || [];
+    const messages = chunk.split('\n\n');
     for (const message of messages) {
         if (message.startsWith('data: ')) {
             const cleanChunk = message.replace('data: ', '').trim();
-            console.log("Clean chunk:", cleanChunk);
-
+            console.log("Clean chunk:", cleanChunk); // Debug log
+            
             if (cleanChunk && cleanChunk !== '[DONE]') {
                 try {
                     // Try parsing the chunk as JSON if it's JSON data
                     const jsonData = JSON.parse(cleanChunk);
-                    // Accumulate the message instead of overwriting
-                    accumulatedMessage += jsonData.content || jsonData.message || jsonData;
+                    botMessage.innerHTML = jsonData.content || jsonData.message || jsonData;
                 } catch (e) {
-                    // If it's not JSON, accumulate the raw chunk
-                    accumulatedMessage += cleanChunk;
+                    // If it's not JSON, use it directly
+                    botMessage.innerHTML = cleanChunk;
                 }
-                // Update the UI with the accumulated message
-                botMessage.innerHTML = accumulatedMessage;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
