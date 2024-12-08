@@ -186,24 +186,24 @@
                 }
         
                 const reader = response.body.getReader();
-const decoder = new TextDecoder();
+                const decoder = new TextDecoder();
 
-while (true) {
-    const {done, value} = await reader.read();
-    if (done) {
-        console.log("Stream done");
-        break;
-    }
-    
-    // Decode the chunk and remove the data: prefix
-    const chunk = decoder.decode(value, {stream: true});
-    const cleanChunk = chunk.replace('data: ', '').trim();
-    
-    if (cleanChunk && cleanChunk !== '[DONE]') {
-        botMessage.innerHTML = cleanChunk;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-}                     
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) {
+                        console.log("Stream done");
+                        break;
+                    }
+                    
+                    // Decode the chunk and remove the data: prefix
+                    const chunk = decoder.decode(value, {stream: true});
+                    const cleanChunk = chunk.replace('data: ', '').trim();
+                    
+                    if (cleanChunk && cleanChunk !== '[DONE]') {
+                        botMessage.innerHTML = cleanChunk;
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }                     
             } catch (error) {
                 console.error('Error:', error);
                 showError('An error occurred while processing your request.');
