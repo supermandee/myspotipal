@@ -40,7 +40,6 @@ class LLMClient:
             )
 
             assistant_message = first_response.choices[0].message
-            
             response = ""
             
             # If tools are needed, handle them first
