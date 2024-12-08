@@ -30,6 +30,35 @@ class SQLiteHandler(logging.Handler):
         ''')
         conn.commit()
         conn.close()
+
+    def log_traceloop_span(self, span):
+        """
+        Logs a Traceloop span into the traceloop_logs table.
+        """
+        attributes_json = json.dumps(span.attributes) if span.attributes else None
+        span_entry = (
+            span.start_time,
+            span.context.span_id,
+            span.context.trace_id,
+            span.name,
+            attributes_json,
+            span.kind.name,
+            span.status.status_code.name if span.status else "UNSET",
+        )
+        insert_sql = '''
+            INSERT INTO traceloop_logs (
+                timestamp, span_id, trace_id, span_name, attributes, kind, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        '''
+        # Wrap only the database operations in the try block
+        try:
+            conn = sqlite3.connect(self.db)
+            with conn:
+                conn.execute(insert_sql, span_entry)
+        except sqlite3.Error as db_error:
+            logging.error(f"Database error while logging Traceloop span: {db_error}")
+        except Exception as e:
+            logging.error(f"Unexpected error while logging Traceloop span: {e}")
     
     def formatException(self, exc_info):
         if exc_info:
