@@ -55,14 +55,14 @@ async function sendMessage() {
 
             const chunk = decoder.decode(value, {stream: true});
             console.log("Raw chunk:", chunk);  // Keep for debugging
-            message = chunk.trim();
-            if (message.startsWith('data: ')) {
-                const cleanChunk = message.replace('data: ', '').trim();
+            //var message = chunk.trim();
+            if (chunk.startsWith('data: ')) {
+                const cleanChunk = chunk.replace('data: ', '').trim();
                 if (cleanChunk && cleanChunk !== '[DONE]') {
                     try {
                         // First try to parse as JSON
                         const jsonData = JSON.parse(cleanChunk);
-                        const content = jsonData.content || jsonData.message || jsonData;
+                        const content = jsonData.content || jsonData.chunk || jsonData;
                         if (content !== lastContent) {  // Only update if content changed
                             botMessage.innerHTML = content;
                             lastContent = content;
