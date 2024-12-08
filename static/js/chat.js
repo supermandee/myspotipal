@@ -92,7 +92,6 @@ async function sendMessage() {
                 }
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
-        }
     } catch (error) {
         console.error('Error:', error);
         showError('An error occurred while processing your request.');
