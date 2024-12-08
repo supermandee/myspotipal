@@ -45,6 +45,7 @@ async function sendMessage() {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let fullMessage = '';
 
         while (true) {
             const {done, value} = await reader.read();
@@ -54,10 +55,26 @@ async function sendMessage() {
             }
 
             const chunk = decoder.decode(value, {stream: true});
-            console.log("Raw chunk:", chunk);  // Keep for debugging
-            //var message = chunk.trim();
-            var cleanChunk = chunk
+            console.log("Raw chunk:", chunk);
+            var cleanChunk = chunk;
             if (cleanChunk && cleanChunk !== '[DONE]') {
+            try {
+                const jsonData = JSON.parse(cleanChunk);
+                const content = jsonData.content || jsonData.chunk || jsonData;
+                if (content !== lastContent) {
+                fullMessage += content;
+                botMessage.innerHTML = fullMessage;
+                lastContent = content;
+                }
+            } catch (e) {
+                if (cleanChunk !== lastContent) {
+                fullMessage += cleanChunk;
+                botMessage.innerHTML = fullMessage;
+                lastContent = cleanChunk;
+                }
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+            }
                 try {
                     // First try to parse as JSON
                     const jsonData = JSON.parse(cleanChunk);
