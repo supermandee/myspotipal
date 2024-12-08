@@ -1,0 +1,119 @@
+/* Base styles */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #ffffff;
+    color: #191414;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-align: center;
+}
+
+.container {
+    max-width: 800px;
+    padding: 100px;
+    background-color: #d1e8d3;
+    border-radius: 10px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1 {
+    font-size: 2.5em;
+    margin-bottom: 0.5em;
+    font-weight: 700;
+}
+
+p {
+    font-size: 1.2em;
+    margin-bottom: 1.5em;
+    font-weight: 300;
+}
+
+.login-button {
+    background-color: #191414;
+    color: #1db954;
+    border: 2px solid #1db954;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    border-radius: 50px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin-top: 30px;
+}
+
+.login-button:hover {
+    background-color: #1db954;
+    color: #191414;
+}
+
+.chatbot-image {
+    width: 200px;
+    height: auto;
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.spotify-logo {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 70px;
+    height: 70px;
+}
+
+/* Mobile styles */
+@media screen and (max-width: 768px) {
+    body {
+        background-color: #d1e8d3;
+    }
+
+    .container {
+        max-width: 100%;
+        width: 100%;
+        height: 100vh;
+        padding: 20px;
+        border-radius: 0;
+        margin: 0;
+        box-sizing: border-box;
+    }
+
+    h1 {
+        font-size: 2em;
+        margin: 15px auto;
+    }
+
+    p {
+        width: 85%;
+        margin: 10px auto 30px auto;
+        line-height: 1.4;
+    }
+
+    .chatbot-image {
+        width: 120px;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1;
+    }
+
+    .login-button {
+        margin-bottom: 140px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .spotify-logo {
+        width: 50px;
+        height: 50px;
+        top: 15px;
+        right: 15px;
+    }
+}
