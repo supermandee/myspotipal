@@ -56,7 +56,7 @@ async function sendMessage() {
             const chunk = decoder.decode(value, {stream: true});
             console.log("Raw chunk:", chunk);  // Keep for debugging
             //var message = chunk.trim();
-
+            var cleanChunk = chunk
             if (cleanChunk && cleanChunk !== '[DONE]') {
                 try {
                     // First try to parse as JSON
