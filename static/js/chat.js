@@ -28,6 +28,8 @@ async function sendMessage() {
     botMessage.className = 'chat-bubble bot-message';
     chatBox.appendChild(botMessage);
 
+    let lastContent = '';  // Track last content to avoid duplicates
+
     try {
         const response = await fetch('/ask', {
             method: 'POST',
@@ -43,7 +45,6 @@ async function sendMessage() {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let messageContent = ''; // Store the accumulated message content
 
         while (true) {
             const {done, value} = await reader.read();
@@ -52,27 +53,29 @@ async function sendMessage() {
                 break;
             }
 
-            // Decode the chunk
             const chunk = decoder.decode(value, {stream: true});
-            console.log("Raw chunk:", chunk);
+            console.log("Raw chunk:", chunk);  // Keep for debugging
 
-            // Split into individual SSE messages
             const messages = chunk.split('\n\n');
             for (const message of messages) {
                 if (message.startsWith('data: ')) {
-                    // Extract the clean chunk of content
                     const cleanChunk = message.replace('data: ', '').trim();
                     if (cleanChunk && cleanChunk !== '[DONE]') {
                         try {
-                            // Try parsing as JSON if it's JSON data
+                            // First try to parse as JSON
                             const jsonData = JSON.parse(cleanChunk);
-                            messageContent = jsonData.content || jsonData.message || jsonData;
+                            const content = jsonData.content || jsonData.message || jsonData;
+                            if (content !== lastContent) {  // Only update if content changed
+                                botMessage.innerHTML = content;
+                                lastContent = content;
+                            }
                         } catch (e) {
-                            // If it's not JSON, use it directly
-                            messageContent = cleanChunk;
+                            // Not JSON, handle as HTML from markdown
+                            if (cleanChunk !== lastContent) {  // Only update if content changed
+                                botMessage.innerHTML = cleanChunk;
+                                lastContent = cleanChunk;
+                            }
                         }
-                        // Update the bot message with accumulated content
-                        botMessage.innerHTML = messageContent;
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }
                 }
