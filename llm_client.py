@@ -19,22 +19,18 @@ class LLMClient:
         
     def process_query(self, query: str, spotify_data: Dict, access_token: str, session_id: str) -> Iterator[str]:
         try:
-            logger.info(f"Processing query for session {session_id[:8]}...")  # Log only first 8 chars of session ID
+            logger.info(f"Processing query for session {session_id[:8]}...")
             
             if session_id not in self.chat_history:
-                logger.debug(f"Initializing new chat history for session {session_id[:8]}")
                 self.chat_history[session_id] = []
                 
             messages = [
                 {"role": "system", "content": "You are a Spotify assistant. Use available tools to fetch real-time music data when needed."}
             ]
-            for msg in self.chat_history[session_id][-5:]:
-                messages.append(msg)
+            messages.extend(self.chat_history[session_id][-5:])
             messages.append({"role": "user", "content": query})
             
-            function_handler = SpotifyFunctionHandler(access_token)
-            response = ""
-            
+            # First check if we need to use tools
             logger.debug("Making initial API call to OpenAI")
             first_response = self.client.chat.completions.create(
                 model=self.model,
@@ -44,55 +40,45 @@ class LLMClient:
             )
 
             assistant_message = first_response.choices[0].message
+            response = ""
+            
+            # If tools are needed, handle them first
             if assistant_message.tool_calls:
-                logger.info(f"Received {len(assistant_message.tool_calls)} tool calls")
+                function_handler = SpotifyFunctionHandler(access_token)
                 for tool_call in assistant_message.tool_calls:
-                    logger.debug(f"Executing tool call: {tool_call.function.name}")
                     result = function_handler.execute_function(tool_call)
-                    
                     if result is None:
                         logger.warning("No data found for tool call")
                         result = {"error": "No data found"}
                     
-                    messages.append({
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [{"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}}]
-                    })
-                    
-                    messages.append({
-                        "role": "tool",
-                        "content": json.dumps(result),
-                        "tool_call_id": tool_call.id
-                    })
-                
-                logger.debug("Making final API call to OpenAI with tool results")
-                final_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    stream=True
-                )
-                
-                for chunk in final_response:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        response += content
-                        yield content
-                        
-            else:
-                logger.debug("No tool calls needed, streaming direct response")
-                stream_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    stream=True
-                )
-                
-                for chunk in stream_response:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        response += content
-                        yield content
+                    messages.extend([
+                        {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [{"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}}]
+                        },
+                        {
+                            "role": "tool",
+                            "content": json.dumps(result),
+                            "tool_call_id": tool_call.id
+                        }
+                    ])
+
+            logger.debug("Making final API call to OpenAI with tool results")
+            # Now stream the final response (whether tools were used or not)
+            stream_response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True
+            )
             
+            for chunk in stream_response:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    response += content
+                    yield content
+            
+            # Update chat history only once at the end
             if response:
                 logger.debug("Updating chat history with assistant's response")
                 self.chat_history[session_id].append({"role": "assistant", "content": response})
