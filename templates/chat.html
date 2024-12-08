@@ -200,21 +200,25 @@
     const chunk = decoder.decode(value, {stream: true});
     console.log("Raw chunk:", chunk); // Debug log
     
+    // Process each message in the chunk
     const messages = chunk.match(/data:[\s\S]+/g) || [];
     for (const message of messages) {
         if (message.startsWith('data: ')) {
             const cleanChunk = message.replace('data: ', '').trim();
-            console.log("Clean chunk:", cleanChunk); // Debug log
-            
+            console.log("Clean chunk:", cleanChunk);
+
             if (cleanChunk && cleanChunk !== '[DONE]') {
                 try {
                     // Try parsing the chunk as JSON if it's JSON data
                     const jsonData = JSON.parse(cleanChunk);
-                    botMessage.innerHTML = jsonData.content || jsonData.message || jsonData;
+                    // Accumulate the message instead of overwriting
+                    accumulatedMessage += jsonData.content || jsonData.message || jsonData;
                 } catch (e) {
-                    // If it's not JSON, use it directly
-                    botMessage.innerHTML = cleanChunk;
+                    // If it's not JSON, accumulate the raw chunk
+                    accumulatedMessage += cleanChunk;
                 }
+                // Update the UI with the accumulated message
+                botMessage.innerHTML = accumulatedMessage;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
