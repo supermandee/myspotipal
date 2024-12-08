@@ -186,20 +186,21 @@
                 }
         
                 const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let responseText = '';
-        
-                while (true) {
+const decoder = new TextDecoder();
+let responseText = '';
+let accumulatedMessage = ''; // Add this to accumulate the message
+
+while (true) {
     const {done, value} = await reader.read();
     if (done) {
         console.log("Stream done");
         break;
     }
-    
-    // Decode the chunk and clean up the data
+
+    // Decode the chunk
     const chunk = decoder.decode(value, {stream: true});
-    console.log("Raw chunk:", chunk); // Debug log
-    
+    console.log("Raw chunk:", chunk);
+
     // Process each message in the chunk
     const messages = chunk.match(/data:[\s\S]+/g) || [];
     for (const message of messages) {
