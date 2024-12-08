@@ -199,9 +199,8 @@ while (true) {
 
     // Decode the chunk
     const chunk = decoder.decode(value, {stream: true});
-    console.log("Raw chunk:", chunk);
-
-    // Process each message in the chunk
+    console.log("Raw chunk:", chunk); // Debug log
+    
     const messages = chunk.match(/data:[\s\S]+/g) || [];
     for (const message of messages) {
         if (message.startsWith('data: ')) {
