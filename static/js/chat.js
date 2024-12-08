@@ -9,27 +9,27 @@ function setExample(example) {
 async function sendMessage() {
     const message = userInput.value.trim();
     if (!message) return;
-
+    
     // Disable input and button while processing
     userInput.disabled = true;
     sendButton.disabled = true;
-
+    
     // Display user message
     const userMessage = document.createElement('div');
     userMessage.className = 'chat-bubble user-message';
     userMessage.textContent = message;
     chatBox.appendChild(userMessage);
-
+    
     // Clear input
     userInput.value = '';
-
+    
     // Create bot message container
     const botMessage = document.createElement('div');
     botMessage.className = 'chat-bubble bot-message';
     chatBox.appendChild(botMessage);
-
+    
     let lastContent = '';  // Track last content to avoid duplicates
-
+    
     try {
         const response = await fetch('/ask', {
             method: 'POST',
@@ -38,60 +38,46 @@ async function sendMessage() {
             },
             body: `query=${encodeURIComponent(message)}`
         });
-
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+        
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullMessage = '';
-
+        
         while (true) {
             const {done, value} = await reader.read();
             if (done) {
                 console.log("Stream done");
                 break;
             }
-
+            
             const chunk = decoder.decode(value, {stream: true});
             console.log("Raw chunk:", chunk);
             var cleanChunk = chunk;
             if (cleanChunk && cleanChunk !== '[DONE]') {
-            try {
-                const jsonData = JSON.parse(cleanChunk);
-                const content = jsonData.content || jsonData.chunk || jsonData;
-                if (content !== lastContent) {
-                fullMessage += content;
-                botMessage.innerHTML = fullMessage;
-                lastContent = content;
-                }
-            } catch (e) {
-                if (cleanChunk !== lastContent) {
-                fullMessage += cleanChunk;
-                botMessage.innerHTML = fullMessage;
-                lastContent = cleanChunk;
-                }
-            }
-            chatBox.scrollTop = chatBox.scrollHeight;
-            }
                 try {
-                    // First try to parse as JSON
                     const jsonData = JSON.parse(cleanChunk);
                     const content = jsonData.content || jsonData.chunk || jsonData;
-                    if (content !== lastContent) {  // Only update if content changed
-                        botMessage.innerHTML = content;
+                    if (content !== lastContent) {
+                        fullMessage += content;
+                        //botMessage.innerHTML = fullMessage;
+                        botMessage.innerHTML = marked.parse(fullMessage);
                         lastContent = content;
                     }
                 } catch (e) {
-                    // Not JSON, handle as HTML from markdown
-                    if (cleanChunk !== lastContent) {  // Only update if content changed
-                        botMessage.innerHTML = cleanChunk;
+                    console.Error('Error:', e);
+                    if (cleanChunk !== lastContent) {
+                        fullMessage += cleanChunk;
+                        botMessage.innerHTML = fullMessage;
                         lastContent = cleanChunk;
                     }
                 }
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
+        }
     } catch (error) {
         console.error('Error:', error);
         showError('An error occurred while processing your request.');
