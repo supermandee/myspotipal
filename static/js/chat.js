@@ -68,7 +68,7 @@ async function sendMessage() {
                         lastContent = content;
                     }
                 } catch (e) {
-                    console.Error('Error:', e);
+                    console.error('Error:', e);
                     if (cleanChunk !== lastContent) {
                         fullMessage += cleanChunk;
                         botMessage.innerHTML = fullMessage;
