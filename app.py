@@ -409,7 +409,7 @@ def callback():
         spotify_data = spotify_helper.gather_spotify_data(cache)
         logger.info("Spotify data successfully gathered and cached")
 
-        return redirect(url_for('chat'))
+        return redirect(url_for('chat', _external=True, _scheme='https'))
     
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
