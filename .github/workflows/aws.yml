@@ -1,4 +1,4 @@
-name: Deploy to EC2 (dev)
+name: Deploy to EC2
 on:
   push:
     branches: [ deploy ]
@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Deploy to EC2 (dev)
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.HOST }}
