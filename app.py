@@ -16,10 +16,8 @@ import sys
 from logger_config import setup_logger
 logger = setup_logger(__name__)
 
-
-# Define REDIRECT_URI at the top-level, no globals, no if/else blocks here
-REDIRECT_URI = "http://localhost:5001/callback" if '--dev' in sys.argv else "https://dev.myspotipal.com/callback"
-
+# Define REDIRECT_URI at the top-level
+REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5001/callback")
 
 # Load environment variables from .env file
 load_dotenv()
