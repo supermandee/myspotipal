@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: ${{ secrets.HOST }}
-    
+
     steps:
       - uses: actions/checkout@v3
+      
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -31,3 +31,4 @@ jobs:
             sudo systemctl restart myspotipal.service
             sudo systemctl restart nginx
             sudo systemctl status myspotipal.service
+            run: echo "The application is live at: http://${{ secrets.HOST }}"
