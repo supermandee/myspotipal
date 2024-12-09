@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 (DEV)
 on:
   push:
     branches: [ deploy ]
