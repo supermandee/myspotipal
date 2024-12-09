@@ -11,7 +11,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production  # Just add this line
+    environment:
+      name: production
+      url: ${{ secrets.HOST }}
     
     steps:
       - uses: actions/checkout@v3
