@@ -325,7 +325,10 @@ def login():
     }
     
     logger.debug(f"Login Parameters: {params}")
+    logger.debug(f"REDIRECT_URI being used: {REDIRECT_URI}")
     url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
+    logger.debug(f"Full authorization URL: {url}")
+
     return redirect(url)
 
 @app.route('/callback')
