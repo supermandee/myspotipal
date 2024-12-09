@@ -310,6 +310,7 @@ def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
 # Updated routes with debugging
 @app.route('/login')
 def login():
+    logger.debug("This is a test log message for the login route") 
     global REDIRECT_URI
     debug_result = debug_spotify_auth(stage='pre-auth')
     if not debug_result['environment_check']:
