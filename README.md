@@ -83,3 +83,4 @@ Got ideas for making MySpotiPal even better? Open a pull request or issue - let'
 ## License
 
 This project is licensed under the MIT License. See the [MIT License](./LICENSE.txt). file for more information.
+
