@@ -16,9 +16,8 @@ import sys
 from logger_config import setup_logger
 logger = setup_logger(__name__)
 
-
-# Define REDIRECT_URI at the top-level, no globals, no if/else blocks here
-REDIRECT_URI = "http://localhost:5001/callback" if '--dev' in sys.argv else "https://myspotipal.com/callback"
+# Define REDIRECT_URI at the top-level
+REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5001/callback")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -310,6 +309,7 @@ def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
 # Updated routes with debugging
 @app.route('/login')
 def login():
+    logger.debug("This is a test log message for the login route") 
     global REDIRECT_URI
     debug_result = debug_spotify_auth(stage='pre-auth')
     if not debug_result['environment_check']:
@@ -325,7 +325,10 @@ def login():
     }
     
     logger.debug(f"Login Parameters: {params}")
+    logger.debug(f"REDIRECT_URI being used: {REDIRECT_URI}")
     url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
+    logger.debug(f"Full authorization URL: {url}")
+
     return redirect(url)
 
 @app.route('/callback')
@@ -410,6 +413,7 @@ def callback():
         logger.info("Spotify data successfully gathered and cached")
 
         return redirect(url_for('chat'))
+    
     
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
@@ -636,4 +640,4 @@ if __name__ == '__main__':
     if '--dev' in sys.argv:
         app.run(host='0.0.0.0', port=5001, debug=True)
     else:
-        app.run(host='0.0.0.0', port=8000, debug=False)
+        app.run(host='0.0.0.0', port=8001, debug=False)
