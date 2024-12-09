@@ -31,4 +31,3 @@ jobs:
             sudo systemctl restart myspotipal.service
             sudo systemctl restart nginx
             sudo systemctl status myspotipal.service
-            run: echo "The application is live at: http://${{ secrets.HOST }}"
