@@ -17,8 +17,12 @@ jobs:
         username: ubuntu
         key: ${{ secrets.SSH_KEY }}
         script: |
-          cd /home/ubuntu/myspotipal
-          git pull origin main
-          sudo systemctl restart myspotipal.service
+          cd /home/ubuntu/myspotipal-dev
+          git pull origin deploy
+
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+          sudo systemctl restart myspotipal-dev.service
           sudo systemctl restart nginx
-          sudo systemctl status myspotipal.service
+          sudo systemctl status myspotipal-dev.service
