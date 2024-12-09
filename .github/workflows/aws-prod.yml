@@ -6,25 +6,15 @@ on:
 
 permissions:
   contents: read
-  deployments: write  # Add this permission
+  deployments: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: ${{ secrets.HOST }}  # Or your application URL
+    environment: production  # Just add this line
     
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Create deployment
-        uses: chrnorm/deployment-action@v2
-        id: deployment
-        with:
-          token: ${{ github.token }}
-          environment: production
-          
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -39,12 +29,3 @@ jobs:
             sudo systemctl restart myspotipal-dev.service
             sudo systemctl restart nginx
             sudo systemctl status myspotipal-dev.service
-            
-      - name: Update deployment status
-        if: always()
-        uses: chrnorm/deployment-status@v2
-        with:
-          token: ${{ github.token }}
-          environment: production
-          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          state: ${{ job.status == 'success' && 'success' || 'failure' }}
