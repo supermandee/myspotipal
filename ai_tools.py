@@ -11,7 +11,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_items",
-            "description": "Get user's top artists or tracks for a specific time range, if no time range is provided, default to medium_term",
+            "description": "Get user's top artists or top tracks (most played) for a specific time range, if no time range is provided, default to medium_term",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -47,7 +47,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_user_playlists",
-            "description": "Get user's Spotify playlists",
+            "description": "Get user's saved and followed Spotify playlists",
             "parameters": {
                 "type": "object",
                 "properties": {},
