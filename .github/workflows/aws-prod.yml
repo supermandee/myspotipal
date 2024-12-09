@@ -1,28 +1,50 @@
 name: Deploy to EC2 (PROD)
+
 on:
   push:
     branches: [ main ]
+
 permissions:
   contents: read
+  deployments: write  # Add this permission
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+    environment:
+      name: production
+      url: ${{ secrets.HOST }}  # Or your application URL
     
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.HOST }}
-        username: ubuntu
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          cd /home/ubuntu/myspotipal-dev
-          git pull origin deploy
-
-          source venv/bin/activate
-          pip install -r requirements.txt
-
-          sudo systemctl restart myspotipal-dev.service
-          sudo systemctl restart nginx
-          sudo systemctl status myspotipal-dev.service
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create deployment
+        uses: chrnorm/deployment-action@v2
+        id: deployment
+        with:
+          token: ${{ github.token }}
+          environment: production
+          
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /home/ubuntu/myspotipal-dev
+            git pull origin deploy
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart myspotipal-dev.service
+            sudo systemctl restart nginx
+            sudo systemctl status myspotipal-dev.service
+            
+      - name: Update deployment status
+        if: always()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          environment: production
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: ${{ job.status == 'success' && 'success' || 'failure' }}
