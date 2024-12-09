@@ -17,6 +17,8 @@ jobs:
         username: ubuntu
         key: ${{ secrets.SSH_KEY }}
         script: |
+         source ~/.bashrc
+         echo "REDIRECT_URI is set to $REDIRECT_URI"
           cd /home/ubuntu/myspotipal-dev
           git pull origin deploy
 
