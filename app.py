@@ -411,6 +411,7 @@ def callback():
 
         return redirect(url_for('chat', _external=True, _scheme='https'))
     
+    
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
         return f"Token request failed: {str(e)}", 500
