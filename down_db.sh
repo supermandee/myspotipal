@@ -4,7 +4,7 @@
 EC2_USER="ubuntu"
 EC2_IP="ec2-3-22-220-27.us-east-2.compute.amazonaws.com"
 PEM_FILE="/Users/mandyhong/Downloads/aws_personalmac.pem"
-REMOTE_PATH="/home/ubuntu/myspotipal/app_logs.db"  # Path to the SQLite file on EC2
+REMOTE_PATH="/home/ubuntu/myspotipal-dev/app_logs.db"  # Path to the SQLite file on EC2
 LOCAL_PATH="./ec2_app_logs.db"                    # Path to save the file locally (current directory)
 
 # Print information

@@ -20,6 +20,7 @@ logger = setup_logger(__name__)
 # Define REDIRECT_URI at the top-level, no globals, no if/else blocks here
 REDIRECT_URI = "http://localhost:5001/callback" if '--dev' in sys.argv else "https://dev.myspotipal.com/callback"
 
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -413,7 +414,7 @@ def callback():
         spotify_data = spotify_helper.gather_spotify_data(cache)
         logger.info("Spotify data successfully gathered and cached")
 
-        return redirect(url_for('chat', _external=True, _scheme='https'))
+        return redirect(url_for('chat'))
     
     
     except requests.exceptions.RequestException as e:
