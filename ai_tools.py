@@ -11,7 +11,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_items",
-            "description": "Get user's top artists or tracks for a specific time range, if no time frame is specified, default to medium_term",
+            "description": "Get user's top artists or tracks for a specific time range",
             "parameters": {
                 "type": "object",
                 "properties": {
