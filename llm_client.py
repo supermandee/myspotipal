@@ -20,7 +20,7 @@ class LLMClient:
         Traceloop.init(
             disable_batch=True,
             api_key=os.getenv('TRACELOOP_API_KEY_PROD'),
-            resource_attributes={"env": "dev", "version": "1.0.0"}
+            resource_attributes={"env": "prod", "version": "1.0.0"}
         )
 
         logger.info(f"Initialized LLMClient with model: {model}")
