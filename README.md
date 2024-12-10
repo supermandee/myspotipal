@@ -27,15 +27,16 @@ MySpotiPal analyzes your listening habits across different timeframes (4 weeks, 
 "Who do I follow on Spotify?"
 "Show me my playlists"
 "What did I listen to recently?"
+"What podcasts have I saved?" 
 ```
 Keep track of your followed artists, playlists, and recent plays
 
-### Learn About Any Artist 🎤
+### Learn About Any Artist, Songs, Playlists, Podcasts & More 🎤
 ```
-"How many followers does Taylor Swift have?"
+"How many followers does Billie Eilish have?"
 "What genre is The Weeknd?"
 "Tell me about BTS"
-"What's Adele's popularity score?"
+"Did Elon Musk appear on 'The Joe Rogan Experience'?"  
 ```
 Get both general info and Spotify stats for any artist!
 
