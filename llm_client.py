@@ -11,7 +11,7 @@ from logger_config import setup_logger
 logger = setup_logger(__name__)
 
 class LLMClient:
-    def __init__(self, model: str = "gpt-4"):
+    def __init__(self, model: str = "gpt-4o"):
         load_dotenv()
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         self.model = model
@@ -19,8 +19,7 @@ class LLMClient:
 
         Traceloop.init(
             disable_batch=True,
-            api_key=os.getenv('TRACELOOP_API_KEY_PROD'),
-            resource_attributes={"env": "prod", "version": "1.0.0"}
+            api_key=os.getenv('TRACELOOP_API_KEY')
         )
 
         logger.info(f"Initialized LLMClient with model: {model}")
@@ -31,9 +30,13 @@ class LLMClient:
 
         if session_id not in self.chat_history:
             self.chat_history[session_id] = []
+            # DEBUG: 
+            logger.warning(f"Chat history not found for session {session_id[:8]}. Creating new chat history.")
 
         # Construct messages
         messages = self._build_messages(session_id, query)
+        #DEBUG:
+        logger.info(f"Lenght of messages: {len(messages)}")      
 
         # Initial OpenAI API call
         assistant_message = self._initial_openai_call(messages)
@@ -49,15 +52,17 @@ class LLMClient:
             yield chunk
 
         # Update chat history
-        if response:
-            self.chat_history[session_id].append({"role": "assistant", "content": response})
+        #if response:
+        #    self.chat_history[session_id].append({"role": "assistant", "content": response})
+
+        self.chat_history[session_id] = messages
 
     @task(name="build_messages")
     def _build_messages(self, session_id: str, query: str) -> List[Dict[str, str]]:
         messages = [
             {"role": "system", "content": "You are a Spotify assistant. Use available tools to fetch real-time music data when needed."}
         ]
-        messages.extend(self.chat_history[session_id][-5:])
+        messages.extend(self.chat_history[session_id])
         messages.append({"role": "user", "content": query})
         logger.info(f"Built messages for session {session_id[:8]}")
         return messages
@@ -69,7 +74,6 @@ class LLMClient:
             model=self.model,
             messages=messages,
             tools=SPOTIFY_TOOLS,
-            tool_choice="auto"
         )
         return response.choices[0].message
 
@@ -87,7 +91,6 @@ class LLMClient:
             messages.extend([
                 {
                     "role": "assistant",
-                    "content": None,
                     "tool_calls": [{
                         "id": tool_call.id,
                         "type": "function",
