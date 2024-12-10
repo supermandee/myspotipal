@@ -11,6 +11,7 @@ from logger_config import setup_logger
 logger = setup_logger(__name__)
 
 class LLMClient:
+    @task(name="start_client")
     def __init__(self, model: str = "gpt-4o"):
         load_dotenv()
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
