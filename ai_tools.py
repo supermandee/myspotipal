@@ -11,7 +11,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_items",
-            "description": "Get user's top artists or top tracks (most played) for a specific time range, if no time range is provided, default to medium_term",
+            "description": "Get user's top artists or top tracks (most frequently played artists or tracks) based on number of plays within a time period for a specific time range, if no time range is provided, default to medium_term",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -71,7 +71,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_recently_played_tracks",
-            "description": "Get user's recently played tracks",
+            "description": "Get the chronological history of tracks the user has listened to, ordered by most recent play date first",
             "parameters": {
                 "type": "object",
                 "properties": {},

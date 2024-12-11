@@ -636,8 +636,4 @@ def cached_data():
         return jsonify({"error": "No data cached"}), 500
 
 if __name__ == '__main__':
-    # Run depending on dev or production mode
-    if '--dev' in sys.argv:
         app.run(host='0.0.0.0', port=5001, debug=True)
-    else:
-        app.run(host='0.0.0.0', port=8001, debug=False)
