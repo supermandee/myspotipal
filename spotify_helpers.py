@@ -18,6 +18,7 @@ class SpotifyHelpers:
         return [
             {
                 'name': item['name'],
+                'uri': item['uri'],
                 'popularity': item.get('popularity'),
                 **(
                     {'genres': item['genres']} if item_type == 'artists' 
@@ -30,7 +31,6 @@ class SpotifyHelpers:
             }
             for item in response['items']
         ]
-
     def get_followed_artists(self) -> Optional[List[Dict]]:
         """Get processed user's followed artists"""
         artists = self.client.get_followed_artists_raw()
