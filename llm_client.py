@@ -37,7 +37,7 @@ class LLMClient:
         # Construct messages
         messages = self._build_messages(session_id, query)
         #DEBUG:
-        logger.info(f"Lenght of messages: {len(messages)}")      
+        logger.info(f"Lengh of messages: {len(messages)}")      
 
         # Initial OpenAI API call
         assistant_message = self._initial_openai_call(messages)
@@ -60,11 +60,20 @@ class LLMClient:
 
     @task(name="build_messages")
     def _build_messages(self, session_id: str, query: str) -> List[Dict[str, str]]:
-        messages = [
-            {"role": "system", "content": "You are a Spotify assistant. Use available tools to fetch real-time music data when needed."}
-        ]
+        messages = []
+        
+        # Only add system prompt if chat history is empty
+        if not self.chat_history[session_id]:
+          messages.append({
+                    "role": "system",
+                    "content": """You are MySpotiPal, an AI-powered Spotify assistant with real-time access to the user's Spotify music data. You're enthusiastic about music while maintaining professionalism and accuracy in your recommendations. Your capabilities include searching for tracks, albums, artists, playlists, shows, episodes, and audiobooks, as well as accessing the user's personal library, including saved playlists and podcasts, top songs and artists, and recently played tracks. Your interaction style should be friendly and conversational, using music-related emojis sparingly (🎵, 🎧, 🎸), showing genuine interest in users' music preferences, providing specific, data-driven insights, explaining recommendations with clear reasoning, and being concise yet informative. When responding to search queries, provide relevant details about the requested content, include popularity metrics when available, and suggest related content when appropriate. For personal library analysis, highlight interesting patterns in listening habits, provide context for statistics, and offer actionable insights. When making recommendations, base suggestions on the user's listening history, include both similar and exploratory options, and explain why each recommendation might appeal to them. For artist and track information, include relevant statistics such as followers, popularity, genres, and similar artists, along with general information. If you're unsure about any data or cannot access certain information, acknowledge this clearly and provide alternative suggestions or information that might help the user. Always prioritize accuracy over speculation."""
+                })
+        # Add existing chat history
         messages.extend(self.chat_history[session_id])
+        
+        # Add new user query
         messages.append({"role": "user", "content": query})
+        
         logger.info(f"Built messages for session {session_id[:8]}")
         return messages
 
