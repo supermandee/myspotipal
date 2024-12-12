@@ -95,7 +95,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_item",
-            "description": "Search for any item type on Spotify",
+            "description": "Retrieves factual information about existing items on Spotify. Use this to look up specific tracks, albums, artists, or playlists. This function performs literal search queries and returns exact matches - it does NOT generate recommendations or suggestions. For music recommendations, use natural language generation instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
