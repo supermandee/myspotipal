@@ -1,38 +1,25 @@
-name: Automated Versioning and Release
+name: Bump version
 
 on:
   push:
-    branches: [ deploy ]  # Trigger on pushes to the deploy branch
-
-permissions:
-  contents: write  # Required for creating tags and releases
+    branches:
+      - deploy  # Replace 'deploy' with your branch if needed
 
 jobs:
-  tag-and-release:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Step 2: Bump version and create tag
-      - name: Bump Version and Create Tag
-        id: tag_version  # Add an ID to access outputs
+      - name: Bump version and push tag
+        id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: deploy  # Specify the branch to trigger releases
-          tag_prefix: 'v'           # Add a prefix to the version tag
-          default_bump: patch       # Default bump type (patch, minor, major)
 
-      # Step 3: Create GitHub Release
-      - name: Create GitHub Release
-        if: steps.tag_version.outputs.new_tag != ''  # Only run if a new tag was created
-        uses: actions/create-release@v1
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ steps.tag_version.outputs.new_tag }}  # Pass the new tag name
-          release_name: Release ${{ steps.tag_version.outputs.new_tag }}  # Set release name
-          body: Auto-generated release from deploy branch  # Optional release description
-          draft: false  # Set to true if you want the release to be a draft
-          prerelease: false  # Set to true for pre-releases
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
