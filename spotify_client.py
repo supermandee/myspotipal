@@ -25,23 +25,41 @@ class SpotifyClient:
         logger.warning("LOGGER WARNING TEST")
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
+            """
+            Make a GET request to the Spotify API
+            """
+            url = f'{self.base_url}/{endpoint}'
+            logger.debug(f"Making request to {endpoint} with params: {params}")
+            
+            response = requests.get(url, headers=self.headers, params=params)
+            
+            if response.status_code != 200:
+                logger.error(f"Error making request to {endpoint}:")
+                logger.error(f"Status Code: {response.status_code}")
+                logger.error(f"Response Text: {response.text}")
+                return None
+            
+            logger.debug(f"Successful response from {endpoint}")
+            return response.json()
+    
+    def _make_post_request(self, endpoint: str, json: Optional[Dict] = None) -> Optional[Dict]:
         """
-        Make a GET request to the Spotify API
+        Make a POST request to the Spotify API
         """
         url = f'{self.base_url}/{endpoint}'
-        logger.debug(f"Making request to {endpoint} with params: {params}")
+        logger.debug(f"Making POST request to {endpoint} with json: {json}")
         
-        response = requests.get(url, headers=self.headers, params=params)
+        response = requests.post(url, headers=self.headers, json=json)
         
-        if response.status_code != 200:
-            logger.error(f"Error making request to {endpoint}:")
+        if response.status_code not in [200, 201]:
+            logger.error(f"Error making POST request to {endpoint}:")
             logger.error(f"Status Code: {response.status_code}")
             logger.error(f"Response Text: {response.text}")
             return None
         
         logger.debug(f"Successful response from {endpoint}")
         return response.json()
-
+    
     def _paginate_request(self, endpoint: str, params: Optional[Dict] = None, limit: Optional[int] = None) -> List[Dict]:
         """
         Handle pagination for Spotify API requests
@@ -79,6 +97,17 @@ class SpotifyClient:
         
         logger.info(f"Completed paginated request to {endpoint}, collected {len(items)} items")
         return items
+    
+    def get_user_profile_raw(self) -> Dict:
+            """Get raw API response for user's profile"""
+            logger.info("Getting user profile")
+            try:
+                response = self._make_request('me')  
+                logger.info(f"Retrieved profile for user: {response.get('display_name', 'Unknown')}")
+                return response
+            except Exception as e:
+                logger.error(f"Failed to get user profile: {str(e)}")
+                return {}
 
     def get_top_items_raw(self, time_range: str, item_type: str) -> Optional[Dict]:
         """Get raw API response for user's top artists or tracks"""
@@ -137,3 +166,16 @@ class SpotifyClient:
         if result:
             logger.info(f"Search completed successfully")
         return result
+    
+    def create_playlist_raw(self, name: str, public: bool = True, 
+                        collaborative: bool = False, description: str = None) -> Optional[Dict]:
+        """Create a new playlist for the authenticated user"""
+        payload = {
+            'name': name,
+            'public': public,
+            'collaborative': collaborative
+        }
+        if description:
+            payload['description'] = description
+
+        return self._make_post_request('me/playlists', json=payload)
