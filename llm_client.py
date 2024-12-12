@@ -90,8 +90,8 @@ class LLMClient:
         logger.info("Handling tool calls")
         function_handler = SpotifyFunctionHandler(access_token)
 
-        # Create a temporary list for the current conversation
-        current_messages = messages.copy()
+        # # Create a temporary list for the current conversation
+        # current_messages = messages.copy()
         
         for tool_call in tool_calls:
             result = function_handler.execute_function(tool_call)
@@ -99,7 +99,7 @@ class LLMClient:
                 logger.warning("No data found for tool call")
                 result = {"error": "No data found"}
                 
-            current_messages.extend([
+            messages.extend([
                 {
                     "role": "assistant",
                     "tool_calls": [{
@@ -118,7 +118,7 @@ class LLMClient:
                 }
             ])
         
-        return current_messages
+        return messages
 
     @task(name="final_openai_call")
     def _final_openai_call(self, messages: List[Dict[str, str]]) -> Iterator[str]:
