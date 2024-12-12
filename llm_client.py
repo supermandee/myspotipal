@@ -28,34 +28,36 @@ class LLMClient:
     @workflow(name="process_query_workflow")
     def process_query(self, query: str, spotify_data: Dict, access_token: str, session_id: str) -> Iterator[str]:
         logger.info(f"Processing query for session {session_id[:8]}...")
-
+        
         if session_id not in self.chat_history:
             self.chat_history[session_id] = []
             # DEBUG: 
             logger.warning(f"Chat history not found for session {session_id[:8]}. Creating new chat history.")
-
+        
         # Construct messages
         messages = self._build_messages(session_id, query)
         #DEBUG:
         logger.info(f"Lengh of messages: {len(messages)}")      
-
+        
         # Initial OpenAI API call
         assistant_message = self._initial_openai_call(messages)
-
-        # Handle tool calls
-        if assistant_message.tool_calls:
-            messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, messages)
-
-        # Final OpenAI API call with streaming
+        
         response = ""
-        for chunk in self._final_openai_call(messages):
-            response += chunk
-            yield chunk
-
+        if assistant_message.tool_calls:
+            # Only make final call if tools were used
+            messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, messages)
+            
+            for chunk in self._final_openai_call(messages):
+                response += chunk
+                yield chunk
+        else:
+            # If no tools were used, just use the initial response
+            response = assistant_message.content
+            yield response
+        
         messages.append({"role": "assistant", "content": response})
-
         self.chat_history[session_id] = messages
-
+        
     @task(name="build_messages")
     def _build_messages(self, session_id: str, query: str) -> List[Dict[str, str]]:
         messages = []
@@ -84,6 +86,7 @@ class LLMClient:
             tools=SPOTIFY_TOOLS,
         )
         return response.choices[0].message
+    
 
     @task(name="handle_tool_calls")
     def _handle_tool_calls(self, tool_calls: List[Dict], access_token: str, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
