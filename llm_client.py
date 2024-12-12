@@ -52,9 +52,7 @@ class LLMClient:
             response += chunk
             yield chunk
 
-        # Update chat history
-        #if response:
-        #    self.chat_history[session_id].append({"role": "assistant", "content": response})
+        messages.append({"role": "assistant", "content": response})
 
         self.chat_history[session_id] = messages
 
@@ -71,7 +69,7 @@ class LLMClient:
         # Add existing chat history
         messages.extend(self.chat_history[session_id])
         
-        # Add new user query
+        # Add new user query and assistant response
         messages.append({"role": "user", "content": query})
         
         logger.info(f"Built messages for session {session_id[:8]}")
@@ -91,6 +89,9 @@ class LLMClient:
     def _handle_tool_calls(self, tool_calls: List[Dict], access_token: str, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         logger.info("Handling tool calls")
         function_handler = SpotifyFunctionHandler(access_token)
+
+        # Create a temporary list for the current conversation
+        current_messages = messages.copy()
         
         for tool_call in tool_calls:
             result = function_handler.execute_function(tool_call)
@@ -98,7 +99,7 @@ class LLMClient:
                 logger.warning("No data found for tool call")
                 result = {"error": "No data found"}
                 
-            messages.extend([
+            current_messages.extend([
                 {
                     "role": "assistant",
                     "tool_calls": [{
@@ -117,7 +118,7 @@ class LLMClient:
                 }
             ])
         
-        return messages
+        return current_messages
 
     @task(name="final_openai_call")
     def _final_openai_call(self, messages: List[Dict[str, str]]) -> Iterator[str]:
