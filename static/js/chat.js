@@ -39,6 +39,15 @@ async function sendMessage() {
             body: `query=${encodeURIComponent(message)}`
         });
         
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+            const json = await response.json();
+            botMessage.innerHTML = `<a href="${json.redirect}">Session expired. Log in again</a>`;
+            showError(json.error || 'Session expired. Please log in again.');
+            return; // Stop further processing
+        }
+        
+        // Handle other non-OK responses
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }

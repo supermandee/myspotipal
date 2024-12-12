@@ -316,7 +316,7 @@ def login():
         logger.error("Environment check failed")
         return "Authentication configuration error", 500
         
-    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played'
+    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played playlist-modify-public playlist-modify-private'
     params = {
         'response_type': 'code',
         'redirect_uri': REDIRECT_URI,
@@ -598,14 +598,21 @@ def ask():
             logger.warning("Received /ask request with no query provided.")
             return jsonify({"error": "No query provided"}), 400
 
-        # Streaming response generation
+        # stream response
         def generate():
             try:
+                # Check token validity before starting
+                access_token = ensure_valid_access_token()
+                if not access_token:
+                    yield f"data: Your session has expired. Please <a href='{url_for('login')}'>log in again</a>.\n\n"
+                    return
+
                 logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
 
                 for chunk in response_iterator:
                     yield chunk
+
             except requests.exceptions.RequestException as e:
                 if "401" in str(e):
                     logger.warning("Session expired while processing /ask query.")
@@ -636,8 +643,4 @@ def cached_data():
         return jsonify({"error": "No data cached"}), 500
 
 if __name__ == '__main__':
-    # Run depending on dev or production mode
-    if '--dev' in sys.argv:
         app.run(host='0.0.0.0', port=5001, debug=True)
-    else:
-        app.run(host='0.0.0.0', port=8001, debug=False)
