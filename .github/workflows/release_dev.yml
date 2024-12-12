@@ -3,7 +3,7 @@ name: Bump version
 on:
   push:
     branches:
-      - deploy  # Replace 'deploy' with your branch if needed
+      - dev  
 
 jobs:
   build:
