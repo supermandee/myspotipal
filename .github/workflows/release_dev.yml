@@ -5,31 +5,33 @@ on:
     branches: [ deploy ]  # Trigger on pushes to the deploy branch
 
 permissions:
-  contents: write  # Required for creating tags
+  contents: write  # Required for creating tags and releases
 
 jobs:
   tag-and-release:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Step 2: Bump version and create tag
       - name: Bump Version and Create Tag
+        id: tag_version  # Add an ID to access outputs
         uses: mathieudutour/github-tag-action@v6.2
-            
         with:
-          release_branches: deploy
-          custom_tag: v$major.$minor.$patch  # Semantic Versioning format
-          tag_prefix: 'v'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: deploy  # Specify the branch to trigger releases
+          tag_prefix: 'v'           # Add a prefix to the version tag
+          default_bump: patch       # Default bump type (patch, minor, major)
 
+      # Step 3: Create a GitHub release
       - name: Create GitHub Release
+        if: steps.tag_version.outputs.new_tag != ''  # Only run if a new tag was created
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ steps.github_tag.outputs.new_tag }}
-          release_name: Release ${{ steps.github_tag.outputs.new_tag }}
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          release_name: Release ${{ steps.tag_version.outputs.new_tag }}
           body: Auto-generated release from deploy branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
