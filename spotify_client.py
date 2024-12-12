@@ -79,6 +79,17 @@ class SpotifyClient:
         
         logger.info(f"Completed paginated request to {endpoint}, collected {len(items)} items")
         return items
+    
+    def get_user_profile_raw(self) -> Dict:
+            """Get raw API response for user's profile"""
+            logger.info("Getting user profile")
+            try:
+                response = self._make_request('me')  # Remove 'GET' as _make_request only needs the endpoint
+                logger.info(f"Retrieved profile for user: {response.get('display_name', 'Unknown')}")
+                return response
+            except Exception as e:
+                logger.error(f"Failed to get user profile: {str(e)}")
+                return {}
 
     def get_top_items_raw(self, time_range: str, item_type: str) -> Optional[Dict]:
         """Get raw API response for user's top artists or tracks"""

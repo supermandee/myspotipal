@@ -10,6 +10,18 @@ SPOTIFY_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_user_profile",
+            "description": "Get the current user's Spotify profile information including display name, ID, URI, follower count, and profile images",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "strict": True
+                }
+            }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_top_items",
             "description": "Get user's top artists or top tracks (most frequently played artists or tracks) based on number of plays within a time period for a specific time range, if no time range is provided, default to medium_term",
             "parameters": {
@@ -115,6 +127,8 @@ class SpotifyFunctionHandler:
 
         if name == "get_top_items":
             return self.spotify_helpers.get_top_items(args["time_range"], args["item_type"])
+        elif name == "get_user_profile": 
+            return self.spotify_helpers.get_user_profile()
         elif name == "get_followed_artists":
             return self.spotify_helpers.get_followed_artists()
         elif name == "get_user_playlists":
