@@ -113,8 +113,27 @@ SPOTIFY_TOOLS = [
                 "strict": True
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_playlist",
+            "description": "Create a new empty playlist for the authenticated Spotify user, the playlist can be public or private. It can be collaborative or non-collaborative. Ask for preferences, if no preferences are given, use default values. Description can be added.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "public": {"type": "boolean", "default": True},
+                    "collaborative": {"type": "boolean", "default": False},
+                    "description": {"type": "string"}
+                },
+                "required": ["name"],
+                "strict": True
+            }
+        }
     }
 ]
+
 
 class SpotifyFunctionHandler:
     def __init__(self, access_token: str):
@@ -138,11 +157,17 @@ class SpotifyFunctionHandler:
         elif name == "get_recently_played_tracks":
             return self.spotify_helpers.get_recently_played_tracks()
         elif name == "search_item":
-            print("DEBUG! - search_item")
             return self.spotify_helpers.search_item(
                 args["query"], 
                 args["search_type"], 
                 args.get("filters")
+            )
+        elif name == "create_playlist":
+            return self.spotify_helpers.create_playlist(
+                name=args["name"],
+                public=args.get("public", True),
+                collaborative=args.get("collaborative", False),
+                description=args.get("description")
             )
         else:
             raise ValueError(f"Unknown function: {name}")
