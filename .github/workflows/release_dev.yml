@@ -1,34 +1,25 @@
-name: Automated Versioning and Release
+name: Bump version
 
 on:
   push:
-    branches: [ deploy ]  # Trigger on pushes to the deploy branch
-
-permissions:
-  contents: write  # Required for creating tags
+    branches:
+      - deploy  # Replace 'deploy' with your branch if needed
 
 jobs:
-  tag-and-release:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Bump Version and Create Tag
-        uses: mathieudutour/github-tag-action@v6
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
         with:
-          release_branches: deploy
-          custom_tag: v$major.$minor.$patch  # Semantic Versioning format
-          tag_prefix: 'v'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ steps.github_tag.outputs.new_tag }}
-          release_name: Release ${{ steps.github_tag.outputs.new_tag }}
-          body: Auto-generated release from deploy branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
