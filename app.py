@@ -316,7 +316,7 @@ def login():
         logger.error("Environment check failed")
         return "Authentication configuration error", 500
         
-    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played'
+    scope = 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-read-private playlist-read-collaborative user-read-recently-played playlist-modify-public playlist-modify-private'
     params = {
         'response_type': 'code',
         'redirect_uri': REDIRECT_URI,

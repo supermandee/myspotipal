@@ -226,6 +226,19 @@ class SpotifyHelpers:
         
         cache.set('spotify_data', spotify_data)
         return spotify_data
+    
+    def create_playlist(self, name: str, public: bool = True, 
+                   collaborative: bool = False, description: str = None) -> Optional[Dict]:
+        """Create a new playlist for the authenticated user"""
+        playlist = self.client.create_playlist_raw(name, public, collaborative, description)
+        if not playlist:
+            return None
+            
+        return {
+            'id': playlist['id'],
+            'name': playlist['name'],
+            'uri': playlist['uri']
+        }
 
     @staticmethod
     def _simplify_item(item: Dict, item_type: str) -> Dict:
