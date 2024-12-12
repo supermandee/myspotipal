@@ -1,6 +1,5 @@
 from openai import OpenAI
 from typing import Dict, Optional, Set
-import logging
 import json
 import math
 from spotify_client import search_artist, search_item

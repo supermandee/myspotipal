@@ -1,37 +1,23 @@
 from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
 from flask import stream_with_context
-import markdown2
 import requests
 from urllib.parse import urlencode
 import os
 import base64
 from dotenv import load_dotenv
 from flask_caching import Cache
-
 from datetime import timedelta
 from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
-import logging
+import sys
 
-# Create a 'logs' directory if it doesn't exist
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+from logger_config import setup_logger
+logger = setup_logger(__name__)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
-    format='%(asctime)s [%(levelname)s] in %(module)s: %(message)s',
-    handlers=[
-        logging.FileHandler('logs/app.log'),  # Log to a file in the 'logs' directory
-        logging.StreamHandler()  # Also log to the console
-    ]
-)
-
-# Initialize logger
-logger = logging.getLogger(__name__)
-
+# Define REDIRECT_URI at the top-level
+REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5001/callback")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -39,7 +25,8 @@ load_dotenv()
 def generate_session_id():
     return str(uuid.uuid4())
 
-app = Flask(__name__)
+
+app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv('FLASK_APP_SECRET_KEY')
 
 # Configure Flask-Caching
@@ -51,7 +38,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
-REDIRECT_URI = 'http://localhost:5001/callback'
 
 # Initialize the LLM client
 llm_client = LLMClient()
@@ -76,20 +62,81 @@ def refresh_token():
         'Authorization': f'Basic {client_credentials_b64}'
     }
 
-    response = requests.post(token_url, data=token_data, headers=token_headers)
-    token_info = response.json()
+    try:
+        response = requests.post(token_url, data=token_data, headers=token_headers)
+        token_info = response.json()
 
-    if response.status_code != 200:
-        logger.error("Error refreshing token:")
-        logger.error("Error code:", response.status_code)
-        logger.error("Error response:", response.text)
+        if response.status_code != 200:
+            logger.error(f"Error refreshing token: {response.status_code}")
+            logger.error(f"Error response: {response.text}")
+            # Clear invalid session data
+            session.pop('access_token', None)
+            session.pop('refresh_token', None)
+            session.pop('user_profile', None)
+            return None
+
+        session['access_token'] = token_info['access_token']
+        if 'refresh_token' in token_info:
+            session['refresh_token'] = token_info['refresh_token']
+            update_env_variable('REFRESH_TOKEN', token_info['refresh_token'])
+        
+        # Update last refresh time
+        session['token_refresh_time'] = datetime.now().timestamp()
+        return token_info['access_token']
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error refreshing token: {str(e)}")
         return None
 
-    session['access_token'] = token_info['access_token']
-    if 'refresh_token' in token_info:
-        session['refresh_token'] = token_info['refresh_token']
-        update_env_variable('REFRESH_TOKEN', token_info['refresh_token'])
-    return token_info['access_token']
+def check_auth_state():
+    """Check authentication state and return appropriate response"""
+    access_token = session.get('access_token')
+    if not access_token:
+        return {
+            'authenticated': False,
+            'message': 'No active session found',
+            'action': 'login'
+        }
+    
+    # Test if the token is valid
+    try:
+        response = requests.get(
+            'https://api.spotify.com/v1/me',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+        
+        if response.status_code == 401:
+            # Try to refresh the token
+            new_token = refresh_token()
+            if not new_token:
+                return {
+                    'authenticated': False,
+                    'message': 'Session expired. Please log in again',
+                    'action': 'login'
+                }
+            return {
+                'authenticated': True,
+                'message': 'Token refreshed successfully',
+                'action': None
+            }
+        elif response.status_code != 200:
+            return {
+                'authenticated': False,
+                'message': 'Authentication error. Please log in again',
+                'action': 'login'
+            }
+        
+        return {
+            'authenticated': True,
+            'message': 'Authenticated',
+            'action': None
+        }
+    except requests.exceptions.RequestException:
+        return {
+            'authenticated': False,
+            'message': 'Network error. Please try again',
+            'action': 'retry'
+        }
 
 def get_access_token():
     access_token = session.get('access_token')
@@ -149,20 +196,31 @@ def get_refresh_token():
         return f"Refresh Token: {refresh_token}", 200
     else:
         return "No refresh token found", 400
+    
+# Catch all 500 errors
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the exception with traceback
+    logger.error(f"Unhandled exception occurred {e}", exc_info=True)
+
+    # Optionally, return a custom error response
+    return jsonify({"error": f"An internal server error occurred, error logged {e}"}), 500
+
 
 @app.route('/')
 def index():
+    logger.info("Rendering index page.")
     return render_template('index.html')
 
 
 def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
     """
     Comprehensive debugging function for Spotify authentication process
-    Parameters:
-        request_data: Dict containing request information
-        response_data: Dict containing response information
-        stage: String indicating which stage of auth process ('pre-auth', 'callback', 'token-refresh')
     """
+    env = os.getenv('ENV', 'development')  # Default to development
+    if env != 'development':
+        return  # Skip logging unless in development mode
+
     logger.debug(f"=== Spotify Auth Debug - {stage} ===")
     
     def check_environment():
@@ -247,9 +305,12 @@ def debug_spotify_auth(request_data=None, response_data=None, stage='pre-auth'):
         'stage': stage
     }
 
+
 # Updated routes with debugging
 @app.route('/login')
 def login():
+    logger.debug("This is a test log message for the login route") 
+    global REDIRECT_URI
     debug_result = debug_spotify_auth(stage='pre-auth')
     if not debug_result['environment_check']:
         logger.error("Environment check failed")
@@ -264,26 +325,41 @@ def login():
     }
     
     logger.debug(f"Login Parameters: {params}")
+    logger.debug(f"REDIRECT_URI being used: {REDIRECT_URI}")
     url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
+    logger.debug(f"Full authorization URL: {url}")
+
     return redirect(url)
 
 @app.route('/callback')
 def callback():
+    global REDIRECT_URI
     debug_result = debug_spotify_auth(request.args, stage='callback')
     
+    # Log environment check results
     if not debug_result['environment_check']:
-        logger.error("Environment check failed")
+        missing_vars = debug_result.get('missing_vars', [])
+        
+        # Log missing variables to appropriate logger
+        for var in missing_vars:
+            if var.startswith('SPOTIFY_'):
+                logger.error(f"Missing Spotify environment variable: {var}")
+            else:
+                logger.error(f"Missing application environment variable: {var}")
+        
         return "Authentication configuration error", 500
-    
+
+    # Handle Spotify auth errors
     if 'error' in request.args:
         logger.error(f"Spotify auth error: {request.args.get('error')}")
         return f"Authentication error: {request.args.get('error')}", 400
-        
+
+    # Check for authorization code
     code = request.args.get('code')
     if not code:
         logger.error("No authorization code received")
         return "No authorization code received", 400
-        
+
     token_url = 'https://accounts.spotify.com/api/token'
     token_data = {
         'grant_type': 'authorization_code',
@@ -299,15 +375,19 @@ def callback():
     }
     
     try:
+        # Request access and refresh tokens
         r = requests.post(token_url, data=token_data, headers=token_headers)
         token_info = r.json()
         
+        # Debug token response
         debug_spotify_auth(token_info, stage='token-response')
         
+        # Handle token errors
         if 'error' in token_info:
             logger.error(f"Token error: {token_info.get('error')}")
             return f"Token error: {token_info.get('error')}", 400
         
+        # Save tokens to session
         session['access_token'] = token_info['access_token']
         session['refresh_token'] = token_info['refresh_token']
         
@@ -318,31 +398,63 @@ def callback():
         user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
         session['user_profile'] = user_profile
         
+        # Log successful profile fetch
+        logger.info(f"Successfully fetched user profile: {user_profile.get('display_name', 'Unknown')}")
+        
         # Save refresh token to .env
         refresh_token = token_info.get('refresh_token')
         if refresh_token:
             update_env_variable('REFRESH_TOKEN', refresh_token)
+            logger.info("Refresh token successfully saved to .env")
         
         # Gather and cache Spotify data
         spotify_helper = get_spotify_client()
         spotify_data = spotify_helper.gather_spotify_data(cache)
-        
+        logger.info("Spotify data successfully gathered and cached")
+
         return redirect(url_for('chat'))
-        
+    
+    
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
         return f"Token request failed: {str(e)}", 500
+    
+    except KeyError as e:
+        logger.error(f"Missing required session key: {str(e)}")
+        return "Session error. Please log in again.", 500
 
 @app.route('/loggedin')
 def loggedin():
+    # Check if the access token exists
     access_token = session.get('access_token')
-    if access_token:
-        headers = {
-            'Authorization': f'Bearer {access_token}'
-        }
-        user_profile = requests.get('https://api.spotify.com/v1/me', headers=headers).json()
-        return user_profile
-    return redirect(url_for('index'))
+    if not access_token:
+        logger.warning("Attempt to access /loggedin without an access token")
+        return redirect(url_for('index'))
+
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    try:
+        # Fetch user profile from Spotify
+        response = requests.get('https://api.spotify.com/v1/me', headers=headers)
+        
+        if response.status_code == 200:
+            user_profile = response.json()
+            logger.info(f"User profile fetched successfully: {user_profile.get('display_name', 'Unknown')}")
+            return user_profile
+        
+        elif response.status_code == 401:  # Token is invalid or expired
+            logger.warning("Access token is invalid or expired. Redirecting to login.")
+            return redirect(url_for('index'))
+        
+        else:
+            logger.error(f"Failed to fetch user profile. Status code: {response.status_code}")
+            return f"Error fetching user profile. Status code: {response.status_code}", 500
+    
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error while fetching user profile: {str(e)}")
+        return "Network error occurred. Please try again later.", 500
 
 @app.route('/top-items')
 def top_items():
@@ -429,49 +541,85 @@ def recent_tracks():
 
 @app.route('/chat')
 def chat():
+    auth_state = check_auth_state()
+    if not auth_state['authenticated']:
+        flash(auth_state['message'])
+        if auth_state['action'] == 'login':
+            return redirect(url_for('login'))
     return render_template('chat.html')
-
-# Configure logging at the start of your application
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
+        # Check authentication state
+        auth_state = check_auth_state()
+        if not auth_state['authenticated']:
+            logger.warning(f"Unauthenticated access attempt to /ask: {auth_state['message']}")
+            return jsonify({
+                "error": auth_state['message'],
+                "redirect": url_for('login'),
+                "needsAuth": True
+            }), 401
+
+        # Retrieve or create a session ID
         session_id = session.get('session_id')
         if not session_id:
             session_id = str(uuid.uuid4())
             session['session_id'] = session_id
+            logger.info(f"New session ID generated: {session_id}")
 
+        # Get Spotify client helpers
         spotify_helpers = get_spotify_client()
         if not spotify_helpers:
-            return jsonify({"error": "Please log in again", "redirect": url_for('login')}), 401
+            logger.error("Failed to create Spotify helpers. User may need to reauthenticate.")
+            return jsonify({
+                "error": "Unable to connect to Spotify. Please try logging in again",
+                "redirect": url_for('login'),
+                "needsAuth": True
+            }), 401
 
+        # Retrieve Spotify data from cache or fetch from API
         spotify_data = cache.get('spotify_data')
         if not spotify_data:
-            logging.debug("Spotify data not in cache. Fetching from Spotify API.")
+            logger.info("Spotify data not found in cache. Fetching fresh data.")
             spotify_data = spotify_helpers.gather_spotify_data(cache)
             if not spotify_data:
-                return jsonify({"error": "No Spotify data available"}), 401
+                logger.error("Failed to fetch Spotify data.")
+                return jsonify({
+                    "error": "Unable to fetch Spotify data. Please try logging in again",
+                    "redirect": url_for('login'),
+                    "needsAuth": True
+                }), 401
 
-        access_token = get_access_token()
+        # Validate the query
+        access_token = session.get('access_token')
         query = request.form.get('query')
         if not query:
+            logger.warning("Received /ask request with no query provided.")
             return jsonify({"error": "No query provided"}), 400
 
+        # stream response
         def generate():
             try:
+                # Check token validity before starting
+                access_token = ensure_valid_access_token()
+                if not access_token:
+                    yield f"data: Your session has expired. Please <a href='{url_for('login')}'>log in again</a>.\n\n"
+                    return
+
+                logger.info(f"Processing query: {query} with session ID: {session_id}")
                 response_iterator = llm_client.process_query(query, spotify_data, access_token, session_id)
-                # Buffer to accumulate markdown content
-                buffer = ""
+
                 for chunk in response_iterator:
-                    buffer += chunk
-                    # Convert markdown to HTML and yield
-                    html = markdown2.markdown(buffer, extras=['fenced-code-blocks', 'tables'])
-                    yield f"data: {html}\n\n"
-            except Exception as e:
-                logging.exception("Error while processing query.")
-                yield f"data: Error: {str(e)}\n\n"
+                    yield chunk
+
+            except requests.exceptions.RequestException as e:
+                if "401" in str(e):
+                    logger.warning("Session expired while processing /ask query.")
+                    yield f"data: Your session has expired. Please <a href='{url_for('login')}'>log in again</a>.\n\n"
+                else:
+                    logger.error(f"Error processing query: {str(e)}", exc_info=True)
+                    yield f"data: Error: {str(e)}. Please try again or <a href='{url_for('login')}'>log in again</a> if the problem persists.\n\n"
 
         return Response(
             stream_with_context(generate()),
@@ -479,10 +627,13 @@ def ask():
         )
 
     except Exception as e:
-        logging.exception("Unexpected error in /ask route.")
-        return jsonify({"error": "Internal Server Error"}), 500
+        logger.error("Unexpected error occurred in /ask route.", exc_info=True)
+        return jsonify({
+            "error": "An unexpected error occurred. Please try again or log in again if the problem persists",
+            "redirect": url_for('login'),
+            "needsAuth": True
+        }), 500
     
-
 @app.route('/cached-data')
 def cached_data():
     spotify_data = cache.get('spotify_data')
@@ -492,4 +643,4 @@ def cached_data():
         return jsonify({"error": "No data cached"}), 500
 
 if __name__ == '__main__':
-    app.run(port=5001)
+        app.run(host='0.0.0.0', port=5001, debug=True)
