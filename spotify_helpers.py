@@ -9,6 +9,24 @@ class SpotifyHelpers:
     def __init__(self, spotify_client: SpotifyClient):
         self.client = spotify_client
 
+    def get_user_profile(self) -> Optional[Dict]:
+        """Get processed user profile information"""
+        profile = self.client.get_user_profile_raw()
+        if not profile:
+            return None
+            
+        return {
+            'id': profile['id'],
+            'display_name': profile.get('display_name'),
+            'uri': profile['uri'],
+            'followers': profile.get('followers', {}).get('total', 0),
+            'images': [
+                {
+                    'url': image['url'],
+                }
+                for image in profile.get('images', [])
+            ] if profile.get('images') else []
+        }
     def get_top_items(self, time_range: str, item_type: str) -> Optional[List[Dict]]:
         """Get user's top artists or tracks"""
         response = self.client.get_top_items_raw(time_range, item_type)
@@ -72,11 +90,19 @@ class SpotifyHelpers:
         tracks = self.client.get_recently_played_tracks_raw()
         return [{
             'name': track['track']['name'],
-            'artists': [{'name': artist['name'], 'id': artist['id']} 
-                       for artist in track['track']['artists']],
+            'uri': track['track']['uri'],
+            'artists': [
+                {
+                    'name': artist['name'], 
+                    'id': artist['id'],
+                    'uri': artist['uri']
+                } 
+                for artist in track['track']['artists']
+            ],
             'album': {
                 'name': track['track']['album']['name'],
-                'id': track['track']['album']['id']
+                'id': track['track']['album']['id'],
+                'uri': track['track']['album']['uri']
             }
         } for track in tracks]
     def search_item(self, query: str, search_type: str, filters: Optional[Dict] = None) -> Optional[List[Dict]]:
