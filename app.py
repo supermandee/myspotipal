@@ -1,5 +1,5 @@
 from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
-from flask import stream_with_context
+from flask import stream_with_context, flash
 import requests
 from urllib.parse import urlencode
 import os
@@ -11,7 +11,6 @@ from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
-import flash
 import sys
 
 from logger_config import setup_logger
