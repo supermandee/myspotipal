@@ -11,6 +11,7 @@ from spotify_client import SpotifyClient
 from spotify_helpers import SpotifyHelpers
 from llm_client import LLMClient
 import uuid
+import flash
 import sys
 
 from logger_config import setup_logger
