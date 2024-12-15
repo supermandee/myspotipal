@@ -415,10 +415,11 @@ def callback():
 
         return redirect(url_for('chat'))
     
-    
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
-        return f"Token request failed: {str(e)}", 500
+        #return f"Token request failed: {str(e)}", 500
+        return render_template('no_access.html')
+
     
     except KeyError as e:
         logger.error(f"Missing required session key: {str(e)}")
