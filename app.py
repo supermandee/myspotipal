@@ -1,5 +1,5 @@
 from flask import Response, Flask, redirect, request, url_for, session, render_template, jsonify
-from flask import stream_with_context
+from flask import stream_with_context, flash
 import requests
 from urllib.parse import urlencode
 import os
@@ -414,10 +414,11 @@ def callback():
 
         return redirect(url_for('chat'))
     
-    
     except requests.exceptions.RequestException as e:
         logger.error(f"Token request failed: {str(e)}")
-        return f"Token request failed: {str(e)}", 500
+        #return f"Token request failed: {str(e)}", 500
+        return render_template('no_access.html')
+
     
     except KeyError as e:
         logger.error(f"Missing required session key: {str(e)}")
