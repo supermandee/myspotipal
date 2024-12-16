@@ -53,6 +53,22 @@ class SpotifyHelpers:
         """Get processed user's followed artists"""
         artists = self.client.get_followed_artists_raw()
         return [{'name': artist['name']} for artist in artists]
+    
+    def get_saved_tracks(self) -> Optional[List[Dict]]:
+        """Get processed user's saved tracks."""
+        tracks_raw = self.client.get_saved_tracks_raw()
+        if not tracks_raw or 'items' not in tracks_raw:
+            return []
+
+        return [
+            {
+                'name': item['track']['name'],
+                'artists': [artist['name'] for artist in item['track']['artists']],
+                'album': item['track']['album']['name'],
+                'uri': item['track']['uri'],
+            }
+            for item in tracks_raw['items'] if 'track' in item and item['track']
+        ]
 
     def get_user_playlists(self, limit: int = 100) -> Optional[List[Dict]]:
         """Get processed user's playlists"""
