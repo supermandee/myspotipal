@@ -121,6 +121,9 @@ class SpotifyHelpers:
         processed_items = []
         
         for item in items:
+            if not item:  # Skip if item is None or empty
+                continue
+                
             processed_item = None
             
             if search_type == 'track':
@@ -238,6 +241,32 @@ class SpotifyHelpers:
             'id': playlist['id'],
             'name': playlist['name'],
             'uri': playlist['uri']
+        }
+
+    def add_songs_to_playlist(self, playlist_id: str, uris: List[str], position: Optional[int] = None) -> Optional[Dict]:
+        """
+        Add items to a playlist
+        
+        Args:
+            playlist_id (str): The Spotify ID of the playlist
+            uris (List[str]): List of Spotify URIs to add (tracks or episodes)
+            position (Optional[int]): Position to insert items (0-based index)
+            
+        Returns:
+            Optional[Dict]: Response containing snapshot_id if successful, None if failed
+        """
+        if len(uris) > 100:
+            logger.warning(f"Cannot add more than 100 items at once. Truncating to first 100 items.")
+            uris = uris[:100]
+            
+        result = self.client.add_songs_to_playlist_raw(playlist_id, uris, position)
+        if not result:
+            return None
+            
+        return {
+            'snapshot_id': result.get('snapshot_id'),
+            'status': 'success',
+            'items_added': len(uris)
         }
 
     @staticmethod

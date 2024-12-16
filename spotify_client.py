@@ -179,3 +179,16 @@ class SpotifyClient:
             payload['description'] = description
 
         return self._make_post_request('me/playlists', json=payload)
+
+    def add_songs_to_playlist_raw(self, playlist_id: str, uris: List[str], position: Optional[int] = None) -> Optional[Dict]:
+        """Add items to a playlist"""
+        logger.info(f"Adding {len(uris)} items to playlist {playlist_id}")
+        
+        # Construct payload
+        payload = {'uris': uris}
+        if position is not None:
+            payload['position'] = position
+        
+        endpoint = f'playlists/{playlist_id}/tracks'
+        
+        return self._make_post_request(endpoint, json=payload)
