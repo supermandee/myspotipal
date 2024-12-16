@@ -192,3 +192,10 @@ class SpotifyClient:
         endpoint = f'playlists/{playlist_id}/tracks'
         
         return self._make_post_request(endpoint, json=payload)
+    
+    def get_saved_audiobooks_raw(self, limit: int = 20, offset: int = 0) -> Optional[Dict]:
+        """
+        Get raw API response for user's saved audiobooks.
+        """
+        logger.info(f"Getting user's saved audiobooks with limit {limit} and offset {offset}")
+        return self._make_request('me/audiobooks', {'limit': limit, 'offset': offset})
