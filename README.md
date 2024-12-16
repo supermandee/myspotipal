@@ -14,6 +14,14 @@ Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify
 
 ## What Can MySpotiPal Do? 🌟
 
+## Playlist Generation 🚀
+```
+"Can you create a playlist of bunker techno?"
+"Help me generate a playlist that sounds like chilling by a beach lounge"
+"Create a playlist called '80s Rock' and add some hair metal classics from the 80s"
+```
+Automatically create playlists in your Spotify account
+
 ### Check Your Music Taste 🎧
 ```
 "Who are my top artists this month?"
@@ -26,7 +34,6 @@ MySpotiPal analyzes your listening habits across different timeframes (4 weeks, 
 ```
 "Who do I follow on Spotify?"
 "Show me my playlists"
-"What did I listen to recently?"
 "What podcasts have I saved?" 
 ```
 Keep track of your followed artists, playlists, and recent plays
@@ -45,11 +52,6 @@ Get both general info and Spotify stats for any artist!
 "Recommend me songs like Glass Animals"
 "What should I listen to if I like indie rock?"
 ```
-
-## Coming Soon 🚀
-- AI-powered playlist creation from text prompts
-- Direct playlist saving to your Spotify
-- Enhanced recommendation system
 
 ## Technical Setup 🛠️
 
