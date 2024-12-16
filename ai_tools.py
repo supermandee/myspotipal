@@ -92,6 +92,18 @@ SPOTIFY_TOOLS = [
         }
     },
     {
+    "type": "function",
+    "function": {
+        "name": "get_saved_tracks",
+        "description": "Get the songs saved in the current Spotify user's 'Your Music' library.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "strict": True
+            }
+        }
+    },
+    {
         "type": "function",
         "function": {
             "name": "get_recently_played_tracks",
@@ -185,6 +197,8 @@ class SpotifyFunctionHandler:
             return self.spotify_helpers.get_saved_podcasts()
         elif name == "get_saved_audiobooks":
             return self.spotify_helpers.get_saved_audiobooks()
+        elif name == "get_saved_tracks":
+            return self.spotify_helpers.get_saved_tracks()
         elif name == "get_recently_played_tracks":
             return self.spotify_helpers.get_recently_played_tracks()
         elif name == "search_item":

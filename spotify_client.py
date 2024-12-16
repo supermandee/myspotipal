@@ -199,3 +199,10 @@ class SpotifyClient:
         """
         logger.info(f"Getting user's saved audiobooks with limit {limit} and offset {offset}")
         return self._make_request('me/audiobooks', {'limit': limit, 'offset': offset})
+    
+    def get_saved_tracks_raw(self, limit: int = 50, offset: int = 0) -> Optional[Dict]:
+        """
+        Get raw API response for user's saved tracks.
+        """
+        params = {'limit': limit, 'offset': offset}
+        return self._make_request('me/tracks', params)
