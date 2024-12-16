@@ -118,7 +118,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "create_playlist",
-            "description": "Create a new empty playlist for the authenticated Spotify user, the playlist can be public or private. It can be collaborative or non-collaborative. Ask for preferences, if no preferences are given, use default values. Description can be added.",
+            "description": "Create a new empty playlist for the authenticated Spotify user. Description need to be added. Tracks need to be added after creation using add_songs_to_playlist",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -128,6 +128,23 @@ SPOTIFY_TOOLS = [
                     "description": {"type": "string"}
                 },
                 "required": ["name"],
+                "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_songs_to_playlist",
+            "description": "Add songs to an existing Spotify playlist",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "uris": {"type": "array", "items": {"type": "string"}},
+                    "position": {"type": "integer"}
+                },
+                "required": ["playlist_id", "uris"],
                 "strict": True
             }
         }
@@ -168,6 +185,12 @@ class SpotifyFunctionHandler:
                 public=args.get("public", True),
                 collaborative=args.get("collaborative", False),
                 description=args.get("description")
+            )
+        elif name == "add_songs_to_playlist":
+            return self.spotify_helpers.add_songs_to_playlist(
+                playlist_id=args["playlist_id"],
+                uris=args["uris"],
+                position=args.get("position")
             )
         else:
             raise ValueError(f"Unknown function: {name}")
