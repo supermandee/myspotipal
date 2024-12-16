@@ -172,7 +172,27 @@ SPOTIFY_TOOLS = [
                 "strict": True
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_playlist_items",
+            "description": "Remove songs or episodes from a Spotify playlist",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "uris": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "snapshot_id": {"type": "string"}
+                },
+                "required": ["playlist_id", "uris"],
+                "strict": True
+            }
+        }
+    },
 ]
 
 
@@ -219,6 +239,12 @@ class SpotifyFunctionHandler:
                 playlist_id=args["playlist_id"],
                 uris=args["uris"],
                 position=args.get("position")
+            )
+        elif name == "remove_playlist_items":
+            return self.spotify_helpers.remove_playlist_items(
+                playlist_id=args["playlist_id"],
+                uris=args["uris"],
+                snapshot_id=args.get("snapshot_id")
             )
         else:
             raise ValueError(f"Unknown function: {name}")

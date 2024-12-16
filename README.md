@@ -14,13 +14,13 @@ Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify
 
 ## What Can MySpotiPal Do? 🌟
 
-## Playlist Generation 🚀
+## Playlist Management 🚀
 ```
 "Can you create a playlist of bunker techno?"
-"Help me generate a playlist that sounds like chilling by a beach lounge"
+"Please remove the song Sunset Lover from my playlist Beach Lounge Vibes"
 "Create a playlist called '80s Rock' and add some hair metal classics from the 80s"
 ```
-Automatically create playlists in your Spotify account
+Automatically create playlists and manage them in your Spotify account; this includes adding and deleting tracks
 
 ### Check Your Music Taste 🎧
 ```

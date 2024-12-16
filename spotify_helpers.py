@@ -305,6 +305,33 @@ class SpotifyHelpers:
             'status': 'success',
             'items_added': len(uris)
         }
+    
+    def remove_playlist_items(self, playlist_id: str, uris: List[str], snapshot_id: Optional[str] = None) -> Optional[Dict]:
+        """
+        Remove items from a playlist.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            uris (List[str]): URIs of the tracks or episodes to remove.
+            snapshot_id (Optional[str]): Snapshot ID for validation.
+
+        Returns:
+            Optional[Dict]: API response containing the snapshot_id of the playlist.
+        """
+        if len(uris) > 100:
+            logger.warning(f"Cannot remove more than 100 items at once. Truncating to first 100 items.")
+            uris = uris[:100]
+
+        result = self.client.remove_playlist_items_raw(playlist_id, uris, snapshot_id)
+        if not result:
+            return None
+
+        return {
+            'snapshot_id': result.get('snapshot_id'),
+            'status': 'success',
+            'items_removed': len(uris)
+        }
+
 
     @staticmethod
     def _simplify_item(item: Dict, item_type: str) -> Dict:
