@@ -82,6 +82,18 @@ SPOTIFY_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_saved_audiobooks",
+            "description": "Get the audiobooks saved in the current Spotify user's library.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_recently_played_tracks",
             "description": "Get the chronological history of tracks the user has listened to, ordered by most recent play date first",
             "parameters": {
@@ -171,6 +183,8 @@ class SpotifyFunctionHandler:
             return self.spotify_helpers.get_user_playlists()
         elif name == "get_saved_podcasts":
             return self.spotify_helpers.get_saved_podcasts()
+        elif name == "get_saved_audiobooks":
+            return self.spotify_helpers.get_saved_audiobooks()
         elif name == "get_recently_played_tracks":
             return self.spotify_helpers.get_recently_played_tracks()
         elif name == "search_item":

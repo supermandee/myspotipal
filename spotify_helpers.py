@@ -72,7 +72,8 @@ class SpotifyHelpers:
             show_data = {
                 'name': show['show'].get('name', 'Unknown Show'),
                 'description': show['show'].get('description', ''),
-                'publisher': show['show'].get('publisher', '')
+                'publisher': show['show'].get('publisher', ''),
+                'uri':show['show'].get('uri', '')
             }
             
             # Check if it's not an audiobook
@@ -84,6 +85,26 @@ class SpotifyHelpers:
                 processed_shows.append(show_data)
         
         return processed_shows
+    
+    def get_saved_audiobooks(self) -> Optional[List[Dict]]:
+        """
+        Get user's saved audiobooks.
+        """
+        audiobooks_raw = self.client.get_saved_audiobooks_raw()
+
+        if not audiobooks_raw or 'items' not in audiobooks_raw:
+            return []
+
+        return [
+            {
+                'id': item.get('id'),
+                'name': item.get('name'),
+                'authors': [author['name'] for author in item.get('authors', [])],
+                'publisher': item.get('publisher'),
+                'uri': item.get('uri'),
+            }
+            for item in audiobooks_raw['items'] if item
+        ]
 
     def get_recently_played_tracks(self) -> Optional[List[Dict]]:
         """Get processed user's recently played tracks"""
