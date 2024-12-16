@@ -193,6 +193,22 @@ class SpotifyClient:
         
         return self._make_post_request(endpoint, json=payload)
     
+    def remove_playlist_items_raw(self, playlist_id: str, uris: List[str], snapshot_id: Optional[str] = None) -> Optional[Dict]:
+        """Remove items from a playlist."""
+        url = f'playlists/{playlist_id}/tracks'
+        payload = {'tracks': [{'uri': uri} for uri in uris]}
+        if snapshot_id:
+            payload['snapshot_id'] = snapshot_id
+
+        logger.info(f"Removing {len(uris)} items from playlist {playlist_id}")
+        response = requests.delete(f'{self.base_url}/{url}', headers=self.headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(f"Failed to remove items from playlist {playlist_id}. Status: {response.status_code}, Response: {response.text}")
+            return None
+
+        return response.json()
+    
     def get_saved_audiobooks_raw(self, limit: int = 20, offset: int = 0) -> Optional[Dict]:
         """
         Get raw API response for user's saved audiobooks.
@@ -206,3 +222,5 @@ class SpotifyClient:
         """
         params = {'limit': limit, 'offset': offset}
         return self._make_request('me/tracks', params)
+    
+
