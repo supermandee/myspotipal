@@ -209,6 +209,26 @@ class SpotifyClient:
 
         return response.json()
     
+    def update_playlist_details_raw(self, playlist_id: str, payload: Dict) -> Optional[Dict]:
+        """
+        Update playlist details with raw Spotify API call.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            payload (Dict): JSON payload with the details to update.
+
+        Returns:
+            Optional[Dict]: API response.
+        """
+        url = f'{self.base_url}/playlists/{playlist_id}'
+        response = requests.put(url, headers=self.headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(f"Failed to update playlist details. Status: {response.status_code}, Response: {response.text}")
+            return None
+
+        return {"status": "success"}
+    
     def get_saved_audiobooks_raw(self, limit: int = 20, offset: int = 0) -> Optional[Dict]:
         """
         Get raw API response for user's saved audiobooks.
