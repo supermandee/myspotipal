@@ -331,6 +331,41 @@ class SpotifyHelpers:
             'status': 'success',
             'items_removed': len(uris)
         }
+    
+    def update_playlist_details(self, playlist_id: str, name: Optional[str] = None,
+                                public: Optional[bool] = None, collaborative: Optional[bool] = None,
+                                description: Optional[str] = None) -> Optional[Dict]:
+        """
+        Update playlist details.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            name (Optional[str]): New playlist name.
+            public (Optional[bool]): Public/private status.
+            collaborative (Optional[bool]): Collaborative status.
+            description (Optional[str]): New playlist description.
+
+        Returns:
+            Optional[Dict]: API response or None if failed.
+        """
+        payload = {}
+        if name is not None:
+            payload['name'] = name
+        if public is not None:
+            payload['public'] = public
+        if collaborative is not None:
+            payload['collaborative'] = collaborative
+        if description is not None:
+            payload['description'] = description
+
+        result = self.client.update_playlist_details_raw(playlist_id, payload)
+        if not result:
+            return None
+
+        return {
+            "status": "success",
+            "message": f"Playlist {playlist_id} updated successfully."
+        }
 
 
     @staticmethod

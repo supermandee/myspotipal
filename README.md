@@ -20,7 +20,7 @@ Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify
 "Please remove the song Sunset Lover from my playlist Beach Lounge Vibes"
 "Create a playlist called '80s Rock' and add some hair metal classics from the 80s"
 ```
-Automatically create playlists and manage them in your Spotify account; this includes adding and deleting tracks
+Automatically create playlists and manage them in your Spotify account; this includes adding and deleting tracks, updating the name, description, privacy and collaborative settings
 
 ### Check Your Music Taste 🎧
 ```

@@ -193,6 +193,25 @@ SPOTIFY_TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_playlist_details",
+            "description": "Update the name and description of a Spotify playlist in the user's library or change the playlist to private or public, or make the playlist collaborative",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "public": {"type": "boolean"},
+                    "collaborative": {"type": "boolean"},
+                    "description": {"type": "string"}
+                },
+                "required": ["playlist_id"],
+                "strict": True
+            }
+        }
+    }
 ]
 
 
@@ -245,6 +264,14 @@ class SpotifyFunctionHandler:
                 playlist_id=args["playlist_id"],
                 uris=args["uris"],
                 snapshot_id=args.get("snapshot_id")
+            )
+        elif name == "update_playlist_details":
+            return self.spotify_helpers.update_playlist_details(
+                playlist_id=args["playlist_id"],
+                name=args.get("name"),
+                public=args.get("public"),
+                collaborative=args.get("collaborative"),
+                description=args.get("description")
             )
         else:
             raise ValueError(f"Unknown function: {name}")
