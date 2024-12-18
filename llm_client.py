@@ -26,31 +26,62 @@ class LLMClient:
         logger.info(f"Initialized LLMClient with model: {model}")
 
     @workflow(name="process_query_workflow")
-    def process_query(self, query: str, spotify_data: Dict, access_token: str, session_id: str) -> Iterator[str]:
+    def process_query(
+        self,
+        query: str,          # The user's input query
+        spotify_data: Dict,  # Dictionary containing Spotify-related data
+        access_token: str,   # Spotify API access token
+        session_id: str      # Unique identifier for the chat session
+    ) -> Iterator[str]:      # Returns a string iterator for streaming responses
+        """
+        Process a user query, handling both direct responses and tool calls with Spotify API.
+        Streams responses back to the user and maintains chat history.
+
+        Args:
+            query: User's input text query
+            spotify_data: Dictionary containing relevant Spotify data
+            access_token: Valid Spotify API access token
+            session_id: Unique identifier for the chat session
+
+        Yields:
+            Encoded string chunks of the assistant's response
+
+        Note:
+            - Maintains chat history per session
+            - Handles streaming responses from OpenAI
+            - Processes tool calls for Spotify API interactions
+        """
         logger.info(f"Processing query for session {session_id[:8]}...")
         
+        # Initialize chat history for new sessions
         if session_id not in self.chat_history:
             self.chat_history[session_id] = []
             logger.warning(f"Chat history not found for session {session_id[:8]}. Creating new chat history.")
         
+        # Build message context including history
         messages = self._build_messages(session_id, query)
         logger.info(f"Length of messages: {len(messages)}")      
         
-        current_messages = messages.copy()
-        response = ""
+        current_messages = messages.copy()  # Working copy of messages
+        response = ""  # Accumulator for complete response
         
         while True:
+            # Get streaming response from OpenAI
             assistant_message = self._initial_openai_call(current_messages)
-            tool_calls = []
+            tool_calls = []  # Accumulator for tool calls in this response
 
+            # Process each chunk of the streaming response
             for chunk in assistant_message:
                 delta = chunk.choices[0].delta
                 if delta and delta.content:
+                    # Handle text content
                     response += delta.content
                     yield delta.content.encode('utf-8')
                 elif delta and delta.tool_calls:
+                    # Handle tool calls (e.g., Spotify API functions)
                     tcchunklist = delta.tool_calls
                     for tcchunk in tcchunklist:
+                        # Initialize new tool call structure if needed
                         if len(tool_calls) <= tcchunk.index:
                             tool_calls.append({
                                 "id": "", 
@@ -62,6 +93,7 @@ class LLMClient:
                             })
                         tc = tool_calls[tcchunk.index]
 
+                        # Accumulate tool call information from chunks
                         if tcchunk.id:
                             tc["id"] += tcchunk.id
                         if tcchunk.function.name:
@@ -69,10 +101,11 @@ class LLMClient:
                         if tcchunk.function.arguments:
                             tc["function"]["arguments"] += tcchunk.function.arguments
 
+            # Exit loop if no tool calls were made
             if not tool_calls:
                 break
                 
-            # Convert tool_calls to format needed by _handle_tool_calls
+            # Convert accumulated tool calls to format needed by handler
             formatted_tool_calls = [
                 type('ToolCall', (), {
                     'id': tc['id'],
@@ -83,8 +116,10 @@ class LLMClient:
                 }) for tc in tool_calls
             ]
             
+            # Process tool calls and update conversation context
             current_messages = self._handle_tool_calls(formatted_tool_calls, access_token, current_messages)
         
+        # Update chat history with final response
         messages.append({"role": "assistant", "content": response})
         self.chat_history[session_id] = messages
         
