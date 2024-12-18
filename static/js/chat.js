@@ -16,27 +16,30 @@ function createThinkingIndicator() {
 async function sendMessage() {
     const message = userInput.value.trim();
     if (!message) return;
-    
+
     // Disable input and button while processing
     userInput.disabled = true;
     sendButton.disabled = true;
-    
+
     // Display user message
     const userMessage = document.createElement('div');
     userMessage.className = 'chat-bubble user-message';
     userMessage.textContent = message;
     chatBox.appendChild(userMessage);
-    
+
     // Clear input
     userInput.value = '';
-    
-    // Create and show thinking indicator in the message flow
+
+    // Show thinking indicator
     const thinkingIndicator = createThinkingIndicator();
     chatBox.appendChild(thinkingIndicator);
     chatBox.scrollTop = chatBox.scrollHeight;
-    
-    let lastContent = '';  // Track last content to avoid duplicates
-    
+
+    // Prepare the bot message container (we'll update this as chunks arrive)
+    const botMessage = document.createElement('div');
+    botMessage.className = 'chat-bubble bot-message';
+    chatBox.appendChild(botMessage);
+
     try {
         const response = await fetch('/ask', {
             method: 'POST',
@@ -45,54 +48,56 @@ async function sendMessage() {
             },
             body: `query=${encodeURIComponent(message)}`
         });
-        
+
         // Handle 401 Unauthorized
         if (response.status === 401) {
             const json = await response.json();
-            thinkingIndicator.innerHTML = `<a href="${json.redirect}">Session expired. Log in again</a>`;
+            botMessage.innerHTML = `<a href="${json.redirect}">Session expired. Log in again</a>`;
             showError(json.error || 'Session expired. Please log in again.');
             return;
         }
-        
+
         // Handle other non-OK responses
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        // Create bot message container to replace thinking indicator
-        const botMessage = document.createElement('div');
-        botMessage.className = 'chat-bubble bot-message';
-        
-        // Replace thinking indicator with actual message container
-        chatBox.replaceChild(botMessage, thinkingIndicator);
-        
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullMessage = '';
-        
+        let lastContent = ''; // Track last chunk for incremental updates
+        let firstChunk = true; // To know when the first actual response arrives
+
         while (true) {
             const {done, value} = await reader.read();
             if (done) {
                 console.log("Stream done");
                 break;
             }
-            
+
             const chunk = decoder.decode(value, {stream: true});
             console.log("Raw chunk:", chunk);
-            var cleanChunk = chunk;
-            if (cleanChunk && cleanChunk !== '[DONE]') {
-                if (cleanChunk !== lastContent) {
-                    fullMessage += cleanChunk;
-                    botMessage.innerHTML = marked.parse(fullMessage);
-                    lastContent = cleanChunk;
+
+            if (chunk && chunk !== '[DONE]') {
+                // Remove thinking indicator once we get the first real chunk
+                if (firstChunk && thinkingIndicator.parentNode) {
+                    thinkingIndicator.remove();
+                    firstChunk = false;
                 }
-                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Incrementally update the displayed content
+                if (chunk !== lastContent) {
+                    fullMessage += chunk;
+                    botMessage.innerHTML = marked.parse(fullMessage);
+                    lastContent = chunk;
+                    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+                }
             }
         }
+
     } catch (error) {
         console.error('Error:', error);
-        // Replace thinking indicator with error message
-        thinkingIndicator.innerHTML = 'Sorry, there was an error processing your request.';
+        botMessage.innerHTML = 'Sorry, there was an error processing your request.';
         showError('An error occurred while processing your request.');
     } finally {
         // Re-enable input and button
