@@ -179,3 +179,68 @@ class SpotifyClient:
             payload['description'] = description
 
         return self._make_post_request('me/playlists', json=payload)
+
+    def add_songs_to_playlist_raw(self, playlist_id: str, uris: List[str], position: Optional[int] = None) -> Optional[Dict]:
+        """Add items to a playlist"""
+        logger.info(f"Adding {len(uris)} items to playlist {playlist_id}")
+        
+        # Construct payload
+        payload = {'uris': uris}
+        if position is not None:
+            payload['position'] = position
+        
+        endpoint = f'playlists/{playlist_id}/tracks'
+        
+        return self._make_post_request(endpoint, json=payload)
+    
+    def remove_playlist_items_raw(self, playlist_id: str, uris: List[str], snapshot_id: Optional[str] = None) -> Optional[Dict]:
+        """Remove items from a playlist."""
+        url = f'playlists/{playlist_id}/tracks'
+        payload = {'tracks': [{'uri': uri} for uri in uris]}
+        if snapshot_id:
+            payload['snapshot_id'] = snapshot_id
+
+        logger.info(f"Removing {len(uris)} items from playlist {playlist_id}")
+        response = requests.delete(f'{self.base_url}/{url}', headers=self.headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(f"Failed to remove items from playlist {playlist_id}. Status: {response.status_code}, Response: {response.text}")
+            return None
+
+        return response.json()
+    
+    def update_playlist_details_raw(self, playlist_id: str, payload: Dict) -> Optional[Dict]:
+        """
+        Update playlist details with raw Spotify API call.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            payload (Dict): JSON payload with the details to update.
+
+        Returns:
+            Optional[Dict]: API response.
+        """
+        url = f'{self.base_url}/playlists/{playlist_id}'
+        response = requests.put(url, headers=self.headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(f"Failed to update playlist details. Status: {response.status_code}, Response: {response.text}")
+            return None
+
+        return {"status": "success"}
+    
+    def get_saved_audiobooks_raw(self, limit: int = 20, offset: int = 0) -> Optional[Dict]:
+        """
+        Get raw API response for user's saved audiobooks.
+        """
+        logger.info(f"Getting user's saved audiobooks with limit {limit} and offset {offset}")
+        return self._make_request('me/audiobooks', {'limit': limit, 'offset': offset})
+    
+    def get_saved_tracks_raw(self, limit: int = 50, offset: int = 0) -> Optional[Dict]:
+        """
+        Get raw API response for user's saved tracks.
+        """
+        params = {'limit': limit, 'offset': offset}
+        return self._make_request('me/tracks', params)
+    
+

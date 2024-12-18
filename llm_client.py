@@ -7,6 +7,7 @@ from traceloop.sdk import Traceloop
 from traceloop.sdk.decorators import workflow, task
 from ai_tools import SPOTIFY_TOOLS, SpotifyFunctionHandler
 from logger_config import setup_logger
+from system_prompt import SYSTEM_PROMPT
 
 logger = setup_logger(__name__)
 
@@ -26,35 +27,100 @@ class LLMClient:
         logger.info(f"Initialized LLMClient with model: {model}")
 
     @workflow(name="process_query_workflow")
-    def process_query(self, query: str, spotify_data: Dict, access_token: str, session_id: str) -> Iterator[str]:
+    def process_query(
+        self,
+        query: str,          # The user's input query
+        spotify_data: Dict,  # Dictionary containing Spotify-related data
+        access_token: str,   # Spotify API access token
+        session_id: str      # Unique identifier for the chat session
+    ) -> Iterator[str]:      # Returns a string iterator for streaming responses
+        """
+        Process a user query, handling both direct responses and tool calls with Spotify API.
+        Streams responses back to the user and maintains chat history.
+
+        Args:
+            query: User's input text query
+            spotify_data: Dictionary containing relevant Spotify data
+            access_token: Valid Spotify API access token
+            session_id: Unique identifier for the chat session
+
+        Yields:
+            Encoded string chunks of the assistant's response
+
+        Note:
+            - Maintains chat history per session
+            - Handles streaming responses from OpenAI
+            - Processes tool calls for Spotify API interactions
+        """
         logger.info(f"Processing query for session {session_id[:8]}...")
         
+        # Initialize chat history for new sessions
         if session_id not in self.chat_history:
             self.chat_history[session_id] = []
-            # DEBUG: 
             logger.warning(f"Chat history not found for session {session_id[:8]}. Creating new chat history.")
         
-        # Construct messages
+        # Build message context including history
         messages = self._build_messages(session_id, query)
-        #DEBUG:
-        logger.info(f"Lengh of messages: {len(messages)}")      
+        logger.info(f"Length of messages: {len(messages)}")      
         
-        # Initial OpenAI API call
-        assistant_message = self._initial_openai_call(messages)
+        current_messages = messages.copy()  # Working copy of messages
+        response = ""  # Accumulator for complete response
         
-        response = ""
-        if assistant_message.tool_calls:
-            # Only make final call if tools were used
-            messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, messages)
+        while True:
+            # Get streaming response from OpenAI
+            assistant_message = self._initial_openai_call(current_messages)
+            tool_calls = []  # Accumulator for tool calls in this response
+
+            # Process each chunk of the streaming response
+            for chunk in assistant_message:
+                delta = chunk.choices[0].delta
+                if delta and delta.content:
+                    # Handle text content
+                    response += delta.content
+                    yield delta.content.encode('utf-8')
+                elif delta and delta.tool_calls:
+                    # Handle tool calls (e.g., Spotify API functions)
+                    tcchunklist = delta.tool_calls
+                    for tcchunk in tcchunklist:
+                        # Initialize new tool call structure if needed
+                        if len(tool_calls) <= tcchunk.index:
+                            tool_calls.append({
+                                "id": "", 
+                                "type": "function", 
+                                "function": { 
+                                    "name": "", 
+                                    "arguments": "" 
+                                }
+                            })
+                        tc = tool_calls[tcchunk.index]
+
+                        # Accumulate tool call information from chunks
+                        if tcchunk.id:
+                            tc["id"] += tcchunk.id
+                        if tcchunk.function.name:
+                            tc["function"]["name"] += tcchunk.function.name
+                        if tcchunk.function.arguments:
+                            tc["function"]["arguments"] += tcchunk.function.arguments
+
+            # Exit loop if no tool calls were made
+            if not tool_calls:
+                break
+                
+            # Convert accumulated tool calls to format needed by handler
+            formatted_tool_calls = [
+                type('ToolCall', (), {
+                    'id': tc['id'],
+                    'function': type('Function', (), {
+                        'name': tc['function']['name'],
+                        'arguments': tc['function']['arguments']
+                    })
+                }) for tc in tool_calls
+            ]
             
-            for chunk in self._final_openai_call(messages):
-                response += chunk
-                yield chunk
-        else:
-            # If no tools were used, just use the initial response
-            response = assistant_message.content
-            yield response
+            # Process tool calls and update conversation context
+            current_messages = self._handle_tool_calls(formatted_tool_calls, access_token, current_messages)
         
+        # Update chat history with final response
         messages.append({"role": "assistant", "content": response})
         self.chat_history[session_id] = messages
         
@@ -65,9 +131,9 @@ class LLMClient:
         # Only add system prompt if chat history is empty
         if not self.chat_history[session_id]:
           messages.append({
-                    "role": "system",
-                    "content": """You are MySpotiPal, an AI-powered Spotify assistant with real-time access to the user's Spotify music data. You're enthusiastic about music while maintaining professionalism and accuracy in your recommendations. Your capabilities include searching for tracks, albums, artists, playlists, shows, episodes, and audiobooks, as well as accessing the user's personal library, including saved playlists and podcasts, top songs and artists, and recently played tracks. Your interaction style should be friendly and conversational, using music-related emojis sparingly (🎵, 🎧, 🎸), showing genuine interest in users' music preferences, providing specific, data-driven insights, explaining recommendations with clear reasoning, and being concise yet informative. When responding to search queries, provide relevant details about the requested content, include popularity metrics when available, and suggest related content when appropriate. For personal library analysis, highlight interesting patterns in listening habits, provide context for statistics, and offer actionable insights. When making recommendations, base suggestions on the user's listening history, include both similar and exploratory options, and explain why each recommendation might appeal to them. For artist and track information, include relevant statistics such as followers, popularity, genres, and similar artists, along with general information. If you're unsure about any data or cannot access certain information, acknowledge this clearly and provide alternative suggestions or information that might help the user. Always prioritize accuracy over speculation."""
-                })
+    "role": "system",
+    "content": SYSTEM_PROMPT
+})
         # Add existing chat history
         messages.extend(self.chat_history[session_id])
         
@@ -84,8 +150,9 @@ class LLMClient:
             model=self.model,
             messages=messages,
             tools=SPOTIFY_TOOLS,
+            stream=True
         )
-        return response.choices[0].message
+        return response
     
 
     @task(name="handle_tool_calls")
