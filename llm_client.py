@@ -31,35 +31,35 @@ class LLMClient:
         
         if session_id not in self.chat_history:
             self.chat_history[session_id] = []
-            # DEBUG: 
             logger.warning(f"Chat history not found for session {session_id[:8]}. Creating new chat history.")
         
-        # Construct messages
         messages = self._build_messages(session_id, query)
-        #DEBUG:
-        logger.info(f"Lengh of messages: {len(messages)}")      
+        logger.info(f"Length of messages: {len(messages)}")      
         
-        # Initial OpenAI API call
         current_messages = messages.copy()
         response = ""
         
         while True:
             assistant_message = self._initial_openai_call(current_messages)
             tool_calls = []
-            # Add any assistant message content to the conversation
-            #if assistant_message.content: FUCKING GARBAGE
-            #current_messages.append({"role": "assistant", "content": assistant_message.content})
+
             for chunk in assistant_message:
                 delta = chunk.choices[0].delta
                 if delta and delta.content:
-                    print(delta, end="")
-                    #response += deltac
+                    response += delta.content
                     yield delta.content.encode('utf-8')
                 elif delta and delta.tool_calls:
                     tcchunklist = delta.tool_calls
                     for tcchunk in tcchunklist:
                         if len(tool_calls) <= tcchunk.index:
-                            tool_calls.append({"id": "", "type": "function", "function": { "name": "", "arguments": "" } })
+                            tool_calls.append({
+                                "id": "", 
+                                "type": "function", 
+                                "function": { 
+                                    "name": "", 
+                                    "arguments": "" 
+                                }
+                            })
                         tc = tool_calls[tcchunk.index]
 
                         if tcchunk.id:
@@ -68,22 +68,25 @@ class LLMClient:
                             tc["function"]["name"] += tcchunk.function.name
                         if tcchunk.function.arguments:
                             tc["function"]["arguments"] += tcchunk.function.arguments
-                    print(tool_calls)
-                        
-                    #current_messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, current_messages)
+
             if not tool_calls:
                 break
-            # If no more tool calls, we're done
-            #if not assistant_message.tool_calls:
-            #    break
+                
+            # Convert tool_calls to format needed by _handle_tool_calls
+            formatted_tool_calls = [
+                type('ToolCall', (), {
+                    'id': tc['id'],
+                    'function': type('Function', (), {
+                        'name': tc['function']['name'],
+                        'arguments': tc['function']['arguments']
+                    })
+                }) for tc in tool_calls
+            ]
             
-            # Handle tool calls and continue the conversation
-            
+            current_messages = self._handle_tool_calls(formatted_tool_calls, access_token, current_messages)
         
-        # Update chat history
         messages.append({"role": "assistant", "content": response})
         self.chat_history[session_id] = messages
-
         
     @task(name="build_messages")
     def _build_messages(self, session_id: str, query: str) -> List[Dict[str, str]]:
