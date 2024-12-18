@@ -6,6 +6,13 @@ function setExample(example) {
     userInput.value = example;
 }
 
+function createThinkingIndicator() {
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-bubble bot-message thinking-indicator';
+    thinkingDiv.innerHTML = 'thinking<span class="dots">...</span>';
+    return thinkingDiv;
+}
+
 async function sendMessage() {
     const message = userInput.value.trim();
     if (!message) return;
@@ -23,10 +30,10 @@ async function sendMessage() {
     // Clear input
     userInput.value = '';
     
-    // Create bot message container
-    const botMessage = document.createElement('div');
-    botMessage.className = 'chat-bubble bot-message';
-    chatBox.appendChild(botMessage);
+    // Create and show thinking indicator in the message flow
+    const thinkingIndicator = createThinkingIndicator();
+    chatBox.appendChild(thinkingIndicator);
+    chatBox.scrollTop = chatBox.scrollHeight;
     
     let lastContent = '';  // Track last content to avoid duplicates
     
@@ -42,9 +49,9 @@ async function sendMessage() {
         // Handle 401 Unauthorized
         if (response.status === 401) {
             const json = await response.json();
-            botMessage.innerHTML = `<a href="${json.redirect}">Session expired. Log in again</a>`;
+            thinkingIndicator.innerHTML = `<a href="${json.redirect}">Session expired. Log in again</a>`;
             showError(json.error || 'Session expired. Please log in again.');
-            return; // Stop further processing
+            return;
         }
         
         // Handle other non-OK responses
@@ -52,12 +59,20 @@ async function sendMessage() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
+        // Create bot message container to replace thinking indicator
+        const botMessage = document.createElement('div');
+        botMessage.className = 'chat-bubble bot-message';
+        
+        // Replace thinking indicator with actual message container
+        chatBox.replaceChild(botMessage, thinkingIndicator);
+        
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullMessage = '';
         
         while (true) {
             const {done, value} = await reader.read();
+            //console.log("value:", value);
             if (done) {
                 console.log("Stream done");
                 break;
@@ -77,8 +92,9 @@ async function sendMessage() {
         }
     } catch (error) {
         console.error('Error:', error);
+        // Replace thinking indicator with error message
+        thinkingIndicator.innerHTML = 'Sorry, there was an error processing your request.';
         showError('An error occurred while processing your request.');
-        botMessage.innerHTML = 'Sorry, there was an error processing your request.';
     } finally {
         // Re-enable input and button
         userInput.disabled = false;

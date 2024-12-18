@@ -129,6 +129,42 @@ body {
 }
 
 
+/* Thinking indicator styles */
+.thinking-indicator {
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    max-width: 70%;
+    background-color: #f1f0f0;
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.thinking-indicator.hidden {
+    display: none;
+}
+
+@keyframes blink {
+    0% { opacity: .2; }
+    20% { opacity: 1; }
+    100% { opacity: .2; }
+}
+
+.thinking-indicator .dots {
+    display: inline-block;
+    animation: blink 1.4s infinite both;
+    margin-left: 2px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
+
 /* Mobile styles */
 @media screen and (max-width: 768px) {
     body {
@@ -164,5 +200,10 @@ body {
     .input-box {
         margin-top: 10px;
         padding-bottom: 80px;
+    }
+    .thinking-indicator {
+        max-width: 60%;
+        padding: 8px;
+        margin-bottom: 8px;
     }
 }

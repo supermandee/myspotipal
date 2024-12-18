@@ -82,6 +82,30 @@ SPOTIFY_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_saved_audiobooks",
+            "description": "Get the audiobooks saved in the current Spotify user's library.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "strict": True
+            }
+        }
+    },
+    {
+    "type": "function",
+    "function": {
+        "name": "get_saved_tracks",
+        "description": "Get the songs saved in the current Spotify user's 'Your Music' library.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_recently_played_tracks",
             "description": "Get the chronological history of tracks the user has listened to, ordered by most recent play date first",
             "parameters": {
@@ -118,7 +142,7 @@ SPOTIFY_TOOLS = [
         "type": "function",
         "function": {
             "name": "create_playlist",
-            "description": "Create a new empty playlist for the authenticated Spotify user, the playlist can be public or private. It can be collaborative or non-collaborative. Ask for preferences, if no preferences are given, use default values. Description can be added.",
+            "description": "Create a new empty playlist for the authenticated Spotify user. Description need to be added. Tracks need to be added after creation using add_songs_to_playlist",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -128,6 +152,62 @@ SPOTIFY_TOOLS = [
                     "description": {"type": "string"}
                 },
                 "required": ["name"],
+                "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_songs_to_playlist",
+            "description": "Add songs to an existing Spotify playlist",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "uris": {"type": "array", "items": {"type": "string"}},
+                    "position": {"type": "integer"}
+                },
+                "required": ["playlist_id", "uris"],
+                "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_playlist_items",
+            "description": "Remove songs or episodes from a Spotify playlist",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "uris": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "snapshot_id": {"type": "string"}
+                },
+                "required": ["playlist_id", "uris"],
+                "strict": True
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_playlist_details",
+            "description": "Update the name and description of a Spotify playlist in the user's library or change the playlist to private or public, or make the playlist collaborative",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "public": {"type": "boolean"},
+                    "collaborative": {"type": "boolean"},
+                    "description": {"type": "string"}
+                },
+                "required": ["playlist_id"],
                 "strict": True
             }
         }
@@ -154,6 +234,10 @@ class SpotifyFunctionHandler:
             return self.spotify_helpers.get_user_playlists()
         elif name == "get_saved_podcasts":
             return self.spotify_helpers.get_saved_podcasts()
+        elif name == "get_saved_audiobooks":
+            return self.spotify_helpers.get_saved_audiobooks()
+        elif name == "get_saved_tracks":
+            return self.spotify_helpers.get_saved_tracks()
         elif name == "get_recently_played_tracks":
             return self.spotify_helpers.get_recently_played_tracks()
         elif name == "search_item":
@@ -167,6 +251,26 @@ class SpotifyFunctionHandler:
                 name=args["name"],
                 public=args.get("public", True),
                 collaborative=args.get("collaborative", False),
+                description=args.get("description")
+            )
+        elif name == "add_songs_to_playlist":
+            return self.spotify_helpers.add_songs_to_playlist(
+                playlist_id=args["playlist_id"],
+                uris=args["uris"],
+                position=args.get("position")
+            )
+        elif name == "remove_playlist_items":
+            return self.spotify_helpers.remove_playlist_items(
+                playlist_id=args["playlist_id"],
+                uris=args["uris"],
+                snapshot_id=args.get("snapshot_id")
+            )
+        elif name == "update_playlist_details":
+            return self.spotify_helpers.update_playlist_details(
+                playlist_id=args["playlist_id"],
+                name=args.get("name"),
+                public=args.get("public"),
+                collaborative=args.get("collaborative"),
                 description=args.get("description")
             )
         else:

@@ -53,6 +53,22 @@ class SpotifyHelpers:
         """Get processed user's followed artists"""
         artists = self.client.get_followed_artists_raw()
         return [{'name': artist['name']} for artist in artists]
+    
+    def get_saved_tracks(self) -> Optional[List[Dict]]:
+        """Get processed user's saved tracks."""
+        tracks_raw = self.client.get_saved_tracks_raw()
+        if not tracks_raw or 'items' not in tracks_raw:
+            return []
+
+        return [
+            {
+                'name': item['track']['name'],
+                'artists': [artist['name'] for artist in item['track']['artists']],
+                'album': item['track']['album']['name'],
+                'uri': item['track']['uri'],
+            }
+            for item in tracks_raw['items'] if 'track' in item and item['track']
+        ]
 
     def get_user_playlists(self, limit: int = 100) -> Optional[List[Dict]]:
         """Get processed user's playlists"""
@@ -72,7 +88,8 @@ class SpotifyHelpers:
             show_data = {
                 'name': show['show'].get('name', 'Unknown Show'),
                 'description': show['show'].get('description', ''),
-                'publisher': show['show'].get('publisher', '')
+                'publisher': show['show'].get('publisher', ''),
+                'uri':show['show'].get('uri', '')
             }
             
             # Check if it's not an audiobook
@@ -84,6 +101,26 @@ class SpotifyHelpers:
                 processed_shows.append(show_data)
         
         return processed_shows
+    
+    def get_saved_audiobooks(self) -> Optional[List[Dict]]:
+        """
+        Get user's saved audiobooks.
+        """
+        audiobooks_raw = self.client.get_saved_audiobooks_raw()
+
+        if not audiobooks_raw or 'items' not in audiobooks_raw:
+            return []
+
+        return [
+            {
+                'id': item.get('id'),
+                'name': item.get('name'),
+                'authors': [author['name'] for author in item.get('authors', [])],
+                'publisher': item.get('publisher'),
+                'uri': item.get('uri'),
+            }
+            for item in audiobooks_raw['items'] if item
+        ]
 
     def get_recently_played_tracks(self) -> Optional[List[Dict]]:
         """Get processed user's recently played tracks"""
@@ -121,6 +158,9 @@ class SpotifyHelpers:
         processed_items = []
         
         for item in items:
+            if not item:  # Skip if item is None or empty
+                continue
+                
             processed_item = None
             
             if search_type == 'track':
@@ -239,6 +279,94 @@ class SpotifyHelpers:
             'name': playlist['name'],
             'uri': playlist['uri']
         }
+
+    def add_songs_to_playlist(self, playlist_id: str, uris: List[str], position: Optional[int] = None) -> Optional[Dict]:
+        """
+        Add items to a playlist
+        
+        Args:
+            playlist_id (str): The Spotify ID of the playlist
+            uris (List[str]): List of Spotify URIs to add (tracks or episodes)
+            position (Optional[int]): Position to insert items (0-based index)
+            
+        Returns:
+            Optional[Dict]: Response containing snapshot_id if successful, None if failed
+        """
+        if len(uris) > 100:
+            logger.warning(f"Cannot add more than 100 items at once. Truncating to first 100 items.")
+            uris = uris[:100]
+            
+        result = self.client.add_songs_to_playlist_raw(playlist_id, uris, position)
+        if not result:
+            return None
+            
+        return {
+            'snapshot_id': result.get('snapshot_id'),
+            'status': 'success',
+            'items_added': len(uris)
+        }
+    
+    def remove_playlist_items(self, playlist_id: str, uris: List[str], snapshot_id: Optional[str] = None) -> Optional[Dict]:
+        """
+        Remove items from a playlist.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            uris (List[str]): URIs of the tracks or episodes to remove.
+            snapshot_id (Optional[str]): Snapshot ID for validation.
+
+        Returns:
+            Optional[Dict]: API response containing the snapshot_id of the playlist.
+        """
+        if len(uris) > 100:
+            logger.warning(f"Cannot remove more than 100 items at once. Truncating to first 100 items.")
+            uris = uris[:100]
+
+        result = self.client.remove_playlist_items_raw(playlist_id, uris, snapshot_id)
+        if not result:
+            return None
+
+        return {
+            'snapshot_id': result.get('snapshot_id'),
+            'status': 'success',
+            'items_removed': len(uris)
+        }
+    
+    def update_playlist_details(self, playlist_id: str, name: Optional[str] = None,
+                                public: Optional[bool] = None, collaborative: Optional[bool] = None,
+                                description: Optional[str] = None) -> Optional[Dict]:
+        """
+        Update playlist details.
+
+        Args:
+            playlist_id (str): Spotify playlist ID.
+            name (Optional[str]): New playlist name.
+            public (Optional[bool]): Public/private status.
+            collaborative (Optional[bool]): Collaborative status.
+            description (Optional[str]): New playlist description.
+
+        Returns:
+            Optional[Dict]: API response or None if failed.
+        """
+        payload = {}
+        if name is not None:
+            payload['name'] = name
+        if public is not None:
+            payload['public'] = public
+        if collaborative is not None:
+            payload['collaborative'] = collaborative
+        if description is not None:
+            payload['description'] = description
+
+        result = self.client.update_playlist_details_raw(playlist_id, payload)
+        if not result:
+            return None
+
+        return {
+            "status": "success",
+            "message": f"Playlist {playlist_id} updated successfully."
+        }
+
 
     @staticmethod
     def _simplify_item(item: Dict, item_type: str) -> Dict:
