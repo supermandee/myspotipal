@@ -45,20 +45,40 @@ class LLMClient:
         
         while True:
             assistant_message = self._initial_openai_call(current_messages)
-            
+            tool_calls = []
             # Add any assistant message content to the conversation
-            if assistant_message.content:
-                current_messages.append({"role": "assistant", "content": assistant_message.content})
-                for chunk in assistant_message.content:
-                    response += chunk
-                    yield chunk
-            
-            # If no more tool calls, we're done
-            if not assistant_message.tool_calls:
+            #if assistant_message.content: FUCKING GARBAGE
+            #current_messages.append({"role": "assistant", "content": assistant_message.content})
+            for chunk in assistant_message:
+                delta = chunk.choices[0].delta
+                if delta and delta.content:
+                    print(delta, end="")
+                    #response += deltac
+                    yield delta.content.encode('utf-8')
+                elif delta and delta.tool_calls:
+                    tcchunklist = delta.tool_calls
+                    for tcchunk in tcchunklist:
+                        if len(tool_calls) <= tcchunk.index:
+                            tool_calls.append({"id": "", "type": "function", "function": { "name": "", "arguments": "" } })
+                        tc = tool_calls[tcchunk.index]
+
+                        if tcchunk.id:
+                            tc["id"] += tcchunk.id
+                        if tcchunk.function.name:
+                            tc["function"]["name"] += tcchunk.function.name
+                        if tcchunk.function.arguments:
+                            tc["function"]["arguments"] += tcchunk.function.arguments
+                    print(tool_calls)
+                        
+                    #current_messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, current_messages)
+            if not tool_calls:
                 break
-                
+            # If no more tool calls, we're done
+            #if not assistant_message.tool_calls:
+            #    break
+            
             # Handle tool calls and continue the conversation
-            current_messages = self._handle_tool_calls(assistant_message.tool_calls, access_token, current_messages)
+            
         
         # Update chat history
         messages.append({"role": "assistant", "content": response})
@@ -137,8 +157,9 @@ You are MySpotiPal, an AI-powered Spotify assistant with real-time access to use
             model=self.model,
             messages=messages,
             tools=SPOTIFY_TOOLS,
+            stream=True
         )
-        return response.choices[0].message
+        return response
     
 
     @task(name="handle_tool_calls")

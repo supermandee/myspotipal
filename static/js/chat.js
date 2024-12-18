@@ -72,6 +72,7 @@ async function sendMessage() {
         
         while (true) {
             const {done, value} = await reader.read();
+            //console.log("value:", value);
             if (done) {
                 console.log("Stream done");
                 break;
