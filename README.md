@@ -14,7 +14,7 @@ Hey there! Meet MySpotiPal - your AI-powered music buddy that knows your Spotify
 
 ## What Can MySpotiPal Do? 🌟
 
-## Playlist Management 🚀
+## Playlist Generation & Management 🚀
 ```
 "Can you create a playlist of bunker techno?"
 "Please remove the song Sunset Lover from my playlist Beach Lounge Vibes"
@@ -30,13 +30,13 @@ Automatically create playlists and manage them in your Spotify account; this inc
 ```
 MySpotiPal analyzes your listening habits across different timeframes (4 weeks, 6 months, or all time)
 
-### Manage Your Music World 📚
+### Manage Your Spotify World 📚
 ```
 "Who do I follow on Spotify?"
 "Show me my playlists"
 "What podcasts have I saved?" 
 ```
-Keep track of your followed artists, playlists, and recent plays
+Keep track of your followed artists, playlists, recent plays, saved tracks, podcasts, and audiobooks etc
 
 ### Learn About Any Artist, Songs, Playlists, Podcasts & More 🎤
 ```
@@ -45,7 +45,7 @@ Keep track of your followed artists, playlists, and recent plays
 "Tell me about BTS"
 "Did Elon Musk appear on 'The Joe Rogan Experience'?"  
 ```
-Get both general info and Spotify stats for any artist!
+Get both general info and Spotify stats for any artist, song, audiobook and more!
 
 ### Get Music Recommendations 🎵
 ```
