@@ -67,6 +67,7 @@ SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
 OPENAI_API_KEY=your_openai_key
 FLASK_APP_SECRET_KEY=your_secret_key
+TRACELOOP_API_KEY=your_traceloop_key
 ```
 
 2. Get it running:
